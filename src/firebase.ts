@@ -3,10 +3,10 @@ import { getAuth, GoogleAuthProvider, type Auth } from 'firebase/auth'
 import { getFirestore, type Firestore } from 'firebase/firestore'
 import { getStorage, type FirebaseStorage } from 'firebase/storage'
 
-// Limpia espacios, saltos de línea o comillas que se cuelen al copiar los
-// valores en los Secrets (causa típica de errores "Invalid URL" en el login).
+// Limpia espacios, saltos de línea, comillas o signos < > que se cuelen al
+// copiar los valores en los Secrets (causan errores "Invalid URL" en el login).
 const clean = (v: string | undefined): string =>
-  (v ?? '').trim().replace(/^["']|["']$/g, '').trim()
+  (v ?? '').trim().replace(/^[<"'\s]+|[>"'\s]+$/g, '').trim()
 
 export const firebaseConfig = {
   apiKey: clean(import.meta.env.VITE_FIREBASE_API_KEY),
