@@ -38,6 +38,8 @@ export interface Restaurant {
   photos: string[]
   /** Fotos del menú cargado (para luego elegir el plato). */
   menuPhotos: string[]
+  /** Link a la carta web del restaurante (opcional). */
+  menuUrl?: string
   /** Carta de platos para evaluar. */
   dishes: Dish[]
   createdBy: string
@@ -58,6 +60,8 @@ export interface Evaluation {
   restaurantCuisine?: string
   dishId?: string | null
   dishName?: string | null
+  /** Tipo del plato evaluado (entrada, fondo, postre, bebida…). */
+  dishCategory?: string | null
   scores: Scores
   /** Nota final ponderada en escala 1-7, calculada y guardada. */
   finalScore: number

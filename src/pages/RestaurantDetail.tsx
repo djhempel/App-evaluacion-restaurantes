@@ -1,24 +1,27 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
+import { useAuth } from '../contexts/AuthContext'
 import { getRestaurant, listEvaluationsByRestaurant } from '../lib/data'
 import type { Evaluation, Restaurant } from '../types'
 import { Spinner } from '../components/Spinner'
 import { SubHeader } from '../components/Layout'
 import { ScoreBadge } from '../components/ScoreBadge'
 import { MiniMap, googleMapsLink } from '../components/MiniMap'
+import { dishCategoryLabel } from '../config/dishes'
 import { formatDate, formatMoney } from '../lib/utils'
 
 export function RestaurantDetail() {
   const { id } = useParams()
+  const { user } = useAuth()
   const navigate = useNavigate()
   const [r, setR] = useState<Restaurant | null | undefined>(undefined)
   const [evals, setEvals] = useState<Evaluation[]>([])
 
   useEffect(() => {
-    if (!id) return
+    if (!id || !user) return
     getRestaurant(id).then(setR)
-    listEvaluationsByRestaurant(id).then(setEvals).catch(() => setEvals([]))
-  }, [id])
+    listEvaluationsByRestaurant(id, user.uid).then(setEvals).catch(() => setEvals([]))
+  }, [id, user])
 
   if (r === undefined) return <Spinner />
   if (r === null)
@@ -73,17 +76,24 @@ export function RestaurantDetail() {
           </div>
         )}
 
-        {r.menuPhotos?.length > 0 && (
+        {(r.menuPhotos?.length > 0 || r.menuUrl) && (
           <>
             <div className="section-title">Menú</div>
             <div className="card">
-              <div className="photo-grid">
-                {r.menuPhotos.map((m) => (
-                  <a href={m} target="_blank" rel="noreferrer" key={m}>
-                    <img src={m} alt="Menú" className="photo-thumb" />
-                  </a>
-                ))}
-              </div>
+              {r.menuUrl && (
+                <a className="btn secondary block" href={r.menuUrl} target="_blank" rel="noreferrer" style={{ marginBottom: r.menuPhotos?.length > 0 ? 10 : 0 }}>
+                  🔗 Ver carta web
+                </a>
+              )}
+              {r.menuPhotos?.length > 0 && (
+                <div className="photo-grid">
+                  {r.menuPhotos.map((m) => (
+                    <a href={m} target="_blank" rel="noreferrer" key={m}>
+                      <img src={m} alt="Menú" className="photo-thumb" />
+                    </a>
+                  ))}
+                </div>
+              )}
             </div>
           </>
         )}
@@ -96,7 +106,7 @@ export function RestaurantDetail() {
                 <div className="list-item" key={d.id}>
                   <div className="meta">
                     <div className="name">{d.name}</div>
-                    {d.description && <div className="sub">{d.description}</div>}
+                    <div className="sub">{dishCategoryLabel(d.category)}</div>
                   </div>
                   {d.price != null && <span className="chip">{formatMoney(d.price)}</span>}
                 </div>

@@ -20,9 +20,11 @@ service cloud.firestore {
       allow delete: if signedIn() && resource.data.createdBy == request.auth.uid;
     }
 
-    // Evaluaciones: el dueño manda. Las públicas se pueden leer sin login (links).
+    // Evaluaciones: las públicas las puede leer cualquiera (incluso sin login,
+    // para los links que se comparten). Las privadas, solo su dueño.
     match /evaluations/{id} {
-      allow read: if signedIn() || resource.data.isPublic == true;
+      allow read: if resource.data.isPublic == true
+        || (signedIn() && resource.data.userId == request.auth.uid);
       allow create: if signedIn() && request.resource.data.userId == request.auth.uid;
       allow update, delete: if signedIn() && resource.data.userId == request.auth.uid;
     }

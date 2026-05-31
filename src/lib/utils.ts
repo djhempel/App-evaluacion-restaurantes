@@ -41,3 +41,28 @@ export function getCurrentPosition(): Promise<{ lat: number; lng: number }> {
 export function classNames(...parts: (string | false | undefined | null)[]): string {
   return parts.filter(Boolean).join(' ')
 }
+
+/** Convierte coordenadas en una dirección legible (OpenStreetMap / Nominatim). */
+export async function reverseGeocode(lat: number, lng: number): Promise<string> {
+  const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&zoom=18&accept-language=es`
+  const res = await fetch(url, { headers: { Accept: 'application/json' } })
+  if (!res.ok) throw new Error('No se pudo obtener la dirección')
+  const data = (await res.json()) as { display_name?: string }
+  return data.display_name ?? ''
+}
+
+/** Distancia en kilómetros entre dos coordenadas (fórmula de Haversine). */
+export function distanceKm(
+  a: { lat: number; lng: number },
+  b: { lat: number; lng: number },
+): number {
+  const R = 6371
+  const dLat = ((b.lat - a.lat) * Math.PI) / 180
+  const dLng = ((b.lng - a.lng) * Math.PI) / 180
+  const lat1 = (a.lat * Math.PI) / 180
+  const lat2 = (b.lat * Math.PI) / 180
+  const h =
+    Math.sin(dLat / 2) ** 2 +
+    Math.sin(dLng / 2) ** 2 * Math.cos(lat1) * Math.cos(lat2)
+  return 2 * R * Math.asin(Math.sqrt(h))
+}

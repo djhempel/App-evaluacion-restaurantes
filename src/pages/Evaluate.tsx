@@ -10,6 +10,7 @@ import { PhotoUploader } from '../components/PhotoUploader'
 import { createEvaluation, getRestaurant, listRestaurants } from '../lib/data'
 import { uploadImage } from '../lib/storage'
 import { computeFinalScore, emptyScores, ratedCount } from '../config/scoring'
+import { DISH_CATEGORIES, DISH_CATEGORY_BY_VALUE } from '../config/dishes'
 import { getCurrentPosition } from '../lib/utils'
 import type { Restaurant, Scores } from '../types'
 
@@ -25,6 +26,7 @@ export function Evaluate() {
   const [restaurant, setRestaurant] = useState<Restaurant | null>(null)
   const [dishId, setDishId] = useState('')
   const [customDish, setCustomDish] = useState('')
+  const [customCategory, setCustomCategory] = useState('fondo')
 
   const [scores, setScores] = useState<Scores>(emptyScores)
   const [photos, setPhotos] = useState<string[]>([])
@@ -80,9 +82,16 @@ export function Evaluate() {
     }
     setSaving(true)
     try {
-      const dishName = dishId
-        ? restaurant.dishes.find((d) => d.id === dishId)?.name ?? null
-        : customDish.trim() || null
+      const menuDish =
+        dishId && dishId !== '__custom__'
+          ? restaurant.dishes.find((d) => d.id === dishId)
+          : undefined
+      const dishName = menuDish ? menuDish.name : customDish.trim() || null
+      const dishCategory = menuDish
+        ? menuDish.category ?? null
+        : customDish.trim()
+          ? customCategory
+          : null
       const id = await createEvaluation({
         userId: user.uid,
         userName: user.displayName ?? 'Anónimo',
@@ -90,8 +99,9 @@ export function Evaluate() {
         restaurantId: restaurant.id,
         restaurantName: restaurant.name,
         restaurantCuisine: restaurant.cuisine ?? '',
-        dishId: dishId || null,
+        dishId: menuDish ? menuDish.id : null,
         dishName,
+        dishCategory,
         scores,
         finalScore,
         comment: comment.trim(),
@@ -154,38 +164,61 @@ export function Evaluate() {
         {restaurant && (
           <>
             {/* Menú / plato */}
-            {restaurant.menuPhotos?.length > 0 && (
+            {(restaurant.menuPhotos?.length > 0 || restaurant.menuUrl) && (
               <div className="card">
                 <span className="hint" style={{ fontWeight: 700, display: 'block', marginBottom: 6 }}>
                   📋 Menú del lugar
                 </span>
-                <div className="photo-grid">
-                  {restaurant.menuPhotos.map((m) => (
-                    <a href={m} target="_blank" rel="noreferrer" key={m}>
-                      <img src={m} alt="Menú" className="photo-thumb" />
-                    </a>
-                  ))}
-                </div>
+                {restaurant.menuUrl && (
+                  <a className="btn secondary small block" href={restaurant.menuUrl} target="_blank" rel="noreferrer" style={{ marginBottom: 8 }}>
+                    🔗 Ver carta web
+                  </a>
+                )}
+                {restaurant.menuPhotos?.length > 0 && (
+                  <div className="photo-grid">
+                    {restaurant.menuPhotos.map((m) => (
+                      <a href={m} target="_blank" rel="noreferrer" key={m}>
+                        <img src={m} alt="Menú" className="photo-thumb" />
+                      </a>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 
             <label className="field">
               <span>Plato evaluado (opcional)</span>
-              {restaurant.dishes?.length > 0 ? (
+              {restaurant.dishes?.length > 0 && (
                 <select value={dishId} onChange={(e) => setDishId(e.target.value)}>
                   <option value="">Sin plato específico</option>
                   {restaurant.dishes.map((d) => (
                     <option key={d.id} value={d.id}>
-                      {d.name}
+                      {DISH_CATEGORY_BY_VALUE[d.category ?? 'otro']?.emoji ?? '🍴'} {d.name}
                     </option>
                   ))}
+                  <option value="__custom__">✏️ Otro (fuera de la carta)</option>
                 </select>
-              ) : (
-                <input
-                  placeholder="Escribe el plato (ej: Risotto de hongos)"
-                  value={customDish}
-                  onChange={(e) => setCustomDish(e.target.value)}
-                />
+              )}
+              {(restaurant.dishes?.length === 0 || dishId === '__custom__') && (
+                <div className="row" style={{ marginTop: restaurant.dishes?.length > 0 ? 8 : 0 }}>
+                  <input
+                    placeholder="Escribe el plato (ej: Risotto de hongos)"
+                    value={customDish}
+                    onChange={(e) => setCustomDish(e.target.value)}
+                    style={{ flex: 2 }}
+                  />
+                  <select
+                    value={customCategory}
+                    onChange={(e) => setCustomCategory(e.target.value)}
+                    style={{ flex: 1 }}
+                  >
+                    {DISH_CATEGORIES.map((c) => (
+                      <option key={c.value} value={c.value}>
+                        {c.emoji} {c.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               )}
             </label>
 

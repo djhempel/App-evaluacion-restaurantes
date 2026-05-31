@@ -1,4 +1,5 @@
 import { CRITERIA, MAX_SCORE, scoreColor, scorePercent } from '../config/scoring'
+import { dishCategoryLabel } from '../config/dishes'
 import type { Evaluation } from '../types'
 import { formatDate, formatMoney } from '../lib/utils'
 import { ScoreBadge } from './ScoreBadge'
@@ -10,6 +11,9 @@ export function EvaluationView({ e }: { e: Evaluation }) {
       <div className="card text-center">
         <div className="muted" style={{ fontSize: 13 }}>{e.restaurantName}</div>
         {e.dishName && <h2 style={{ margin: '4px 0' }}>{e.dishName}</h2>}
+        {e.dishCategory && (
+          <div className="chip" style={{ margin: '0 auto' }}>{dishCategoryLabel(e.dishCategory)}</div>
+        )}
         <div className="score-big" style={{ color: scoreColor(e.finalScore) }}>
           {e.finalScore.toFixed(1)}
         </div>

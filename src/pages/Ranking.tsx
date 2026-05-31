@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
-import { listAllEvaluations, listMyEvaluations } from '../lib/data'
+import { listPublicEvaluations, listMyEvaluations } from '../lib/data'
 import type { Evaluation } from '../types'
 import { Spinner } from '../components/Spinner'
 import { ScoreBadge } from '../components/ScoreBadge'
@@ -23,7 +23,7 @@ export function Ranking() {
   useEffect(() => {
     setEvals(null)
     const loader =
-      scope === 'mine' && user ? listMyEvaluations(user.uid) : listAllEvaluations()
+      scope === 'mine' && user ? listMyEvaluations(user.uid) : listPublicEvaluations()
     loader.then(setEvals).catch(() => setEvals([]))
   }, [scope, user])
 

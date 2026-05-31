@@ -66,30 +66,40 @@ export async function listMyEvaluations(userId: string): Promise<Evaluation[]> {
   return byNewest(snap.docs.map((d) => mapDoc<Evaluation>(d)))
 }
 
-export async function listAllEvaluations(): Promise<Evaluation[]> {
-  const q = query(collection(db, 'evaluations'), orderBy('createdAt', 'desc'))
+/** Evaluaciones públicas de todos los usuarios (para ranking y explorar). */
+export async function listPublicEvaluations(): Promise<Evaluation[]> {
+  const q = query(collection(db, 'evaluations'), where('isPublic', '==', true))
   const snap = await getDocs(q)
-  return snap.docs.map((d) => mapDoc<Evaluation>(d))
+  return byNewest(snap.docs.map((d) => mapDoc<Evaluation>(d)))
 }
 
+/**
+ * Evaluaciones de un restaurante que el usuario puede ver: todas las públicas
+ * (de cualquiera) más las propias (aunque sean privadas).
+ */
 export async function listEvaluationsByRestaurant(
   restaurantId: string,
+  userId: string,
 ): Promise<Evaluation[]> {
-  // Sin orderBy para no requerir índice compuesto; ordenamos en cliente.
-  const q = query(
-    collection(db, 'evaluations'),
-    where('restaurantId', '==', restaurantId),
-  )
-  const snap = await getDocs(q)
-  const items = snap.docs.map((d) => mapDoc<Evaluation>(d))
-  return items.sort(
-    (a, b) => (b.createdAt?.toMillis() ?? 0) - (a.createdAt?.toMillis() ?? 0),
-  )
+  const [pub, mine] = await Promise.all([
+    listPublicEvaluations(),
+    listMyEvaluations(userId),
+  ])
+  const byId = new Map<string, Evaluation>()
+  for (const e of [...pub, ...mine]) {
+    if (e.restaurantId === restaurantId) byId.set(e.id, e)
+  }
+  return byNewest(Array.from(byId.values()))
 }
 
 export async function getEvaluation(id: string): Promise<Evaluation | null> {
-  const snap = await getDoc(doc(db, 'evaluations', id))
-  return snap.exists() ? ({ id: snap.id, ...snap.data() } as Evaluation) : null
+  try {
+    const snap = await getDoc(doc(db, 'evaluations', id))
+    return snap.exists() ? ({ id: snap.id, ...snap.data() } as Evaluation) : null
+  } catch {
+    // Sin permiso para leerla (es privada de otra persona).
+    return null
+  }
 }
 
 export async function createEvaluation(

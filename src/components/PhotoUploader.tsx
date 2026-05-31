@@ -69,11 +69,11 @@ export function PhotoUploader({ value, onChange, upload, label, max = 9 }: Props
           </button>
         )}
       </div>
+      {/* Sin "capture": el sistema deja elegir entre cámara o galería. */}
       <input
         ref={inputRef}
         type="file"
         accept="image/*"
-        capture="environment"
         multiple
         hidden
         onChange={(e) => handleFiles(e.target.files)}
