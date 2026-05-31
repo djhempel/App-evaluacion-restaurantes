@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useEffect, useMemo, useState } from 'react'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { useToast } from '../components/Toast'
 import { SubHeader } from '../components/Layout'
@@ -7,9 +7,15 @@ import { Spinner } from '../components/Spinner'
 import { PhotoUploader } from '../components/PhotoUploader'
 import { createRestaurant, getRestaurant, listRestaurants, updateRestaurant } from '../lib/data'
 import { uploadImage } from '../lib/storage'
-import { getCurrentPosition, reverseGeocode } from '../lib/utils'
+import {
+  getCurrentPosition,
+  normalizeText,
+  reverseGeocode,
+  searchPlaces,
+  type PlaceResult,
+} from '../lib/utils'
 import { DISH_CATEGORIES } from '../config/dishes'
-import type { Dish } from '../types'
+import type { Dish, Restaurant } from '../types'
 
 export function RestaurantForm() {
   const { id } = useParams()
@@ -29,19 +35,62 @@ export function RestaurantForm() {
   const [dishes, setDishes] = useState<Dish[]>([])
   const [saving, setSaving] = useState(false)
   const [locBusy, setLocBusy] = useState(false)
-  const [cuisineOptions, setCuisineOptions] = useState<string[]>([])
+  const [allRestaurants, setAllRestaurants] = useState<Restaurant[]>([])
 
-  // Cocinas ya usadas, para sugerir mientras escribes.
+  // Búsqueda de lugares (autocompletar con OpenStreetMap).
+  const [placeQuery, setPlaceQuery] = useState('')
+  const [placeResults, setPlaceResults] = useState<PlaceResult[]>([])
+  const [placeSearching, setPlaceSearching] = useState(false)
+
+  // Restaurantes existentes (para sugerir cocinas y avisar duplicados).
   useEffect(() => {
     listRestaurants()
-      .then((rs) => {
-        const set = new Set(
-          rs.map((r) => (r.cuisine ?? '').trim()).filter(Boolean),
-        )
-        setCuisineOptions(Array.from(set).sort())
-      })
+      .then(setAllRestaurants)
       .catch(() => undefined)
   }, [])
+
+  const cuisineOptions = useMemo(() => {
+    const set = new Set(allRestaurants.map((r) => (r.cuisine ?? '').trim()).filter(Boolean))
+    return Array.from(set).sort()
+  }, [allRestaurants])
+
+  // Posibles duplicados por nombre parecido (solo al crear).
+  const possibleDuplicates = useMemo(() => {
+    const n = normalizeText(name)
+    if (editing || n.length < 4) return []
+    return allRestaurants
+      .filter((r) => {
+        const rn = normalizeText(r.name)
+        return rn === n || rn.includes(n) || n.includes(rn)
+      })
+      .slice(0, 3)
+  }, [name, allRestaurants, editing])
+
+  // Busca lugares mientras escribes (con retardo, respetando OpenStreetMap).
+  useEffect(() => {
+    const q = placeQuery.trim()
+    if (q.length < 4) {
+      setPlaceResults([])
+      return
+    }
+    setPlaceSearching(true)
+    const t = setTimeout(() => {
+      searchPlaces(q)
+        .then(setPlaceResults)
+        .catch(() => setPlaceResults([]))
+        .finally(() => setPlaceSearching(false))
+    }, 700)
+    return () => clearTimeout(t)
+  }, [placeQuery])
+
+  function selectPlace(p: PlaceResult) {
+    if (!name.trim()) setName(p.name)
+    setAddress(p.address)
+    setLoc({ lat: p.lat, lng: p.lng })
+    setPlaceResults([])
+    setPlaceQuery('')
+    toast('Datos del lugar cargados 📍')
+  }
 
   useEffect(() => {
     if (!id) return
@@ -147,10 +196,59 @@ export function RestaurantForm() {
     <>
       <SubHeader title={editing ? 'Editar restaurante' : 'Nuevo restaurante'} />
       <div className="app-main">
+        {!editing && (
+          <div className="card">
+            <label className="field" style={{ marginBottom: placeResults.length || placeSearching ? 10 : 0 }}>
+              <span>🔎 Buscar el lugar (autocompletar)</span>
+              <input
+                value={placeQuery}
+                onChange={(e) => setPlaceQuery(e.target.value)}
+                placeholder="Escribe el nombre o dirección…"
+                autoComplete="off"
+              />
+              <p className="hint">Busca en OpenStreetMap y precarga dirección y ubicación.</p>
+            </label>
+            {placeSearching && <p className="hint">Buscando…</p>}
+            {placeResults.map((p, i) => (
+              <button
+                key={i}
+                type="button"
+                className="list-item"
+                onClick={() => selectPlace(p)}
+                style={{ width: '100%', background: 'none', border: 'none', textAlign: 'left', cursor: 'pointer' }}
+              >
+                <span style={{ fontSize: 20 }}>📍</span>
+                <div className="meta">
+                  <div className="name">{p.name}</div>
+                  <div className="sub">{p.address}</div>
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
+
         <label className="field">
           <span>Nombre *</span>
           <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ej: La Mar" />
         </label>
+
+        {possibleDuplicates.length > 0 && (
+          <div className="card" style={{ borderLeft: '4px solid var(--orange)' }}>
+            <div style={{ fontWeight: 700, marginBottom: 4 }}>⚠️ ¿Quizás ya existe?</div>
+            <p className="hint" style={{ marginTop: 0 }}>
+              Encontramos lugares con nombre parecido. Toca para ver y evitar duplicarlo:
+            </p>
+            {possibleDuplicates.map((r) => (
+              <Link key={r.id} to={`/restaurantes/${r.id}`} className="list-item" style={{ color: 'inherit' }}>
+                <div className="meta">
+                  <div className="name">{r.name}</div>
+                  {r.cuisine && <div className="sub">{r.cuisine}</div>}
+                </div>
+                <span style={{ color: 'var(--muted)' }}>›</span>
+              </Link>
+            ))}
+          </div>
+        )}
         <label className="field">
           <span>Tipo de cocina</span>
           <input

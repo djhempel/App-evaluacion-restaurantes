@@ -51,6 +51,48 @@ export async function reverseGeocode(lat: number, lng: number): Promise<string> 
   return data.display_name ?? ''
 }
 
+export interface PlaceResult {
+  name: string
+  address: string
+  lat: number
+  lng: number
+}
+
+/** Busca lugares por texto (OpenStreetMap / Nominatim). Para autocompletar. */
+export async function searchPlaces(query: string): Promise<PlaceResult[]> {
+  const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&q=${encodeURIComponent(
+    query,
+  )}&limit=6&addressdetails=1&namedetails=1&accept-language=es`
+  const res = await fetch(url, { headers: { Accept: 'application/json' } })
+  if (!res.ok) throw new Error('No se pudo buscar el lugar')
+  const data = (await res.json()) as Array<{
+    display_name: string
+    lat: string
+    lon: string
+    name?: string
+    namedetails?: { name?: string }
+  }>
+  return data.map((d) => ({
+    name: d.namedetails?.name || d.name || d.display_name.split(',')[0],
+    address: d.display_name,
+    lat: Number(d.lat),
+    lng: Number(d.lon),
+  }))
+}
+
+/** Normaliza texto para comparar (minúsculas, sin acentos). */
+export function normalizeText(s: string): string {
+  return s
+    .toLowerCase()
+    .replace(/[áàä]/g, 'a')
+    .replace(/[éèë]/g, 'e')
+    .replace(/[íìï]/g, 'i')
+    .replace(/[óòö]/g, 'o')
+    .replace(/[úùü]/g, 'u')
+    .replace(/ñ/g, 'n')
+    .trim()
+}
+
 /** Distancia en kilómetros entre dos coordenadas (fórmula de Haversine). */
 export function distanceKm(
   a: { lat: number; lng: number },
