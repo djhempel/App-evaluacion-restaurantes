@@ -33,6 +33,11 @@ export function Profile() {
             <div className="meta"><div className="name">Estadísticas</div></div>
             <span style={{ color: 'var(--muted)' }}>›</span>
           </Link>
+          <Link to="/ranking" className="list-item" style={{ color: 'inherit', padding: 16 }}>
+            <span style={{ fontSize: 22 }}>🏆</span>
+            <div className="meta"><div className="name">Ranking</div></div>
+            <span style={{ color: 'var(--muted)' }}>›</span>
+          </Link>
           <Link to="/wishlist" className="list-item" style={{ color: 'inherit', padding: 16 }}>
             <span style={{ fontSize: 22 }}>📌</span>
             <div className="meta"><div className="name">Por visitar</div></div>
