@@ -52,10 +52,10 @@ jobs:
           # Limpia espacios o saltos de línea que se hayan colado al copiar el secreto.
           PROJECT_ID="$(printf '%s' "$RAW_PROJECT_ID" | tr -d '[:space:]"')"
           echo "Desplegando el proyecto: [$PROJECT_ID]"
-          # Nota: las reglas de Storage se publican a mano en la consola de
-          # Firebase, porque la llave de servicio por defecto no tiene permiso
-          # para tocar Storage por línea de comandos.
+          # Solo publicamos el sitio web. Las reglas de Firestore y Storage se
+          # publican a mano en la consola de Firebase, porque la llave de
+          # servicio por defecto no tiene permiso para subir reglas por CLI.
           npx --yes firebase-tools@13 deploy \
-            --only hosting,firestore \
+            --only hosting \
             --project "$PROJECT_ID" \
             --non-interactive

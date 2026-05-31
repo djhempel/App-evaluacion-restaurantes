@@ -52,14 +52,18 @@ export async function updateRestaurant(
 
 /* ----------------------------- Evaluaciones ----------------------------- */
 
-export async function listMyEvaluations(userId: string): Promise<Evaluation[]> {
-  const q = query(
-    collection(db, 'evaluations'),
-    where('userId', '==', userId),
-    orderBy('createdAt', 'desc'),
+/** Ordena por fecha de creación descendente (más reciente primero). */
+function byNewest<T extends { createdAt?: { toMillis(): number } }>(items: T[]): T[] {
+  return items.sort(
+    (a, b) => (b.createdAt?.toMillis() ?? 0) - (a.createdAt?.toMillis() ?? 0),
   )
+}
+
+export async function listMyEvaluations(userId: string): Promise<Evaluation[]> {
+  // Sin orderBy para no requerir índice compuesto; ordenamos en cliente.
+  const q = query(collection(db, 'evaluations'), where('userId', '==', userId))
   const snap = await getDocs(q)
-  return snap.docs.map((d) => mapDoc<Evaluation>(d))
+  return byNewest(snap.docs.map((d) => mapDoc<Evaluation>(d)))
 }
 
 export async function listAllEvaluations(): Promise<Evaluation[]> {
@@ -112,13 +116,10 @@ export async function deleteEvaluation(id: string): Promise<void> {
 /* ------------------------------- Wishlist ------------------------------- */
 
 export async function listWishlist(userId: string): Promise<WishlistItem[]> {
-  const q = query(
-    collection(db, 'wishlist'),
-    where('userId', '==', userId),
-    orderBy('createdAt', 'desc'),
-  )
+  // Sin orderBy para no requerir índice compuesto; ordenamos en cliente.
+  const q = query(collection(db, 'wishlist'), where('userId', '==', userId))
   const snap = await getDocs(q)
-  return snap.docs.map((d) => mapDoc<WishlistItem>(d))
+  return byNewest(snap.docs.map((d) => mapDoc<WishlistItem>(d)))
 }
 
 export async function addWishlist(
