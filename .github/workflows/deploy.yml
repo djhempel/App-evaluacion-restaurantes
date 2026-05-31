@@ -47,8 +47,12 @@ jobs:
       - name: Publicar en Firebase (hosting + reglas)
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/firebase-key.json
+          RAW_PROJECT_ID: ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
         run: |
+          # Limpia espacios o saltos de línea que se hayan colado al copiar el secreto.
+          PROJECT_ID="$(printf '%s' "$RAW_PROJECT_ID" | tr -d '[:space:]"')"
+          echo "Desplegando el proyecto: [$PROJECT_ID]"
           npx --yes firebase-tools@13 deploy \
             --only hosting,firestore,storage \
-            --project "${{ secrets.VITE_FIREBASE_PROJECT_ID }}" \
+            --project "$PROJECT_ID" \
             --non-interactive
