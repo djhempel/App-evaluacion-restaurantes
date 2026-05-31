@@ -7,13 +7,20 @@ import {
   type ReactNode,
 } from 'react'
 import {
+  getRedirectResult,
   onAuthStateChanged,
   signInWithPopup,
+  signInWithRedirect,
   signOut,
   type User,
 } from 'firebase/auth'
 import { doc, serverTimestamp, setDoc } from 'firebase/firestore'
 import { auth, db, googleProvider, isFirebaseConfigured } from '../firebase'
+
+/** En celulares los popups suelen bloquearse: usamos redirección. */
+const isMobile =
+  typeof navigator !== 'undefined' &&
+  /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
 
 interface AuthState {
   user: User | null
@@ -34,6 +41,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(false)
       return
     }
+    // Completa el inicio de sesión cuando volvemos de la redirección de Google.
+    getRedirectResult(auth).catch((e) => console.error('redirect login', e))
     const unsub = onAuthStateChanged(auth, async (u) => {
       setUser(u)
       setLoading(false)
@@ -61,7 +70,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       loading,
       configured: isFirebaseConfigured,
       loginWithGoogle: async () => {
-        await signInWithPopup(auth, googleProvider)
+        if (isMobile) {
+          // La página navega a Google y vuelve; el inicio se completa solo.
+          await signInWithRedirect(auth, googleProvider)
+        } else {
+          await signInWithPopup(auth, googleProvider)
+        }
       },
       logout: async () => {
         await signOut(auth)
