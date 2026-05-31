@@ -18,7 +18,12 @@ export function Login() {
       await loginWithGoogle()
     } catch (e) {
       console.error(e)
-      setError('No se pudo iniciar sesión. Intenta de nuevo.')
+      const err = e as { code?: string; message?: string }
+      setError(
+        `No se pudo iniciar sesión.\nCódigo: ${err.code ?? '(sin código)'}\n${
+          err.message ?? ''
+        }`,
+      )
     } finally {
       setBusy(false)
     }
@@ -46,7 +51,11 @@ export function Login() {
       <button className="btn block" onClick={handleLogin} disabled={busy} style={{ maxWidth: 360 }}>
         {busy ? 'Conectando…' : 'Continuar con Google'}
       </button>
-      {error && <p style={{ color: '#d23a3a' }}>{error}</p>}
+      {error && (
+        <p style={{ color: '#d23a3a', whiteSpace: 'pre-line', fontSize: 13, maxWidth: 360 }}>
+          {error}
+        </p>
+      )}
       <p className="hint">Tus evaluaciones quedan guardadas en tu cuenta.</p>
     </div>
   )
