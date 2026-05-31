@@ -8,7 +8,7 @@ import { getStorage, type FirebaseStorage } from 'firebase/storage'
 const clean = (v: string | undefined): string =>
   (v ?? '').trim().replace(/^["']|["']$/g, '').trim()
 
-const firebaseConfig = {
+export const firebaseConfig = {
   apiKey: clean(import.meta.env.VITE_FIREBASE_API_KEY),
   authDomain: clean(import.meta.env.VITE_FIREBASE_AUTH_DOMAIN),
   projectId: clean(import.meta.env.VITE_FIREBASE_PROJECT_ID),

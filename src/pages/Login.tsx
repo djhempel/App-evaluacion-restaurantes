@@ -1,7 +1,16 @@
 import { useState } from 'react'
 import { Navigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
+import { firebaseConfig } from '../firebase'
 import { CRITERIA } from '../config/scoring'
+
+// Diagnóstico temporal: comprueba si el authDomain arma una URL válida.
+let urlCheck = 'ok'
+try {
+  new URL(`https://${firebaseConfig.authDomain}/__/auth/handler`)
+} catch (e) {
+  urlCheck = `FALLA: ${(e as Error).message}`
+}
 
 export function Login() {
   const { user, loading, loginWithGoogle } = useAuth()
@@ -57,6 +66,15 @@ export function Login() {
         </p>
       )}
       <p className="hint">Tus evaluaciones quedan guardadas en tu cuenta.</p>
+      <p className="hint" style={{ fontSize: 11, wordBreak: 'break-all', maxWidth: 360 }}>
+        debug · authDomain: [{firebaseConfig.authDomain}]
+        <br />
+        projectId: [{firebaseConfig.projectId}]
+        <br />
+        appId: [{firebaseConfig.appId}]
+        <br />
+        urlCheck: {urlCheck}
+      </p>
     </div>
   )
 }
