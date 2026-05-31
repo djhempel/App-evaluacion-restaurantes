@@ -3,7 +3,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { SubHeader } from '../components/Layout'
 import { Spinner } from '../components/Spinner'
 import { listMyEvaluations } from '../lib/data'
-import { CRITERIA, scoreColor } from '../config/scoring'
+import { CRITERIA, scoreColor, scorePercent } from '../config/scoring'
 import { formatMoney } from '../lib/utils'
 import type { CriterionKey, Evaluation } from '../types'
 
@@ -89,7 +89,7 @@ export function Stats() {
                     <span style={{ fontWeight: 800 }}>{c.n ? c.avg.toFixed(1) : '—'}</span>
                   </div>
                   <div className="bar-track">
-                    <div className="bar-fill" style={{ width: `${c.avg * 10}%`, background: scoreColor(c.avg) }} />
+                    <div className="bar-fill" style={{ width: `${scorePercent(c.avg)}%`, background: scoreColor(c.avg) }} />
                   </div>
                 </div>
               ))}

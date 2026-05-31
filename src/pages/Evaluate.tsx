@@ -199,7 +199,7 @@ export function Evaluate() {
                 {finalScore.toFixed(1)}
               </div>
               <div className="muted" style={{ fontSize: 12 }}>
-                sobre 10 · {rated} de 6 criterios
+                sobre 7 · {rated} de 6 criterios
               </div>
             </div>
 

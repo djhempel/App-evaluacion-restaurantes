@@ -1,4 +1,4 @@
-import { CRITERIA, scoreColor } from '../config/scoring'
+import { CRITERIA, MAX_SCORE, scoreColor, scorePercent } from '../config/scoring'
 import type { Evaluation } from '../types'
 import { formatDate, formatMoney } from '../lib/utils'
 import { ScoreBadge } from './ScoreBadge'
@@ -40,13 +40,15 @@ export function EvaluationView({ e }: { e: Evaluation }) {
                 <span style={{ flex: 1, fontWeight: 600, fontSize: 14 }}>
                   {c.label} <span className="muted">· {Math.round(c.weight * 100)}%</span>
                 </span>
-                <span style={{ fontWeight: 800 }}>{v == null ? 'N/A' : `${v}/10`}</span>
+                <span style={{ fontWeight: 800 }}>
+                  {v == null ? 'N/A' : `${v.toFixed(1)}/${MAX_SCORE}`}
+                </span>
               </div>
               {v != null && (
                 <div className="bar-track">
                   <div
                     className="bar-fill"
-                    style={{ width: `${v * 10}%`, background: scoreColor(v) }}
+                    style={{ width: `${scorePercent(v)}%`, background: scoreColor(v) }}
                   />
                 </div>
               )}

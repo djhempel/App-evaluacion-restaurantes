@@ -59,7 +59,7 @@ export interface Evaluation {
   dishId?: string | null
   dishName?: string | null
   scores: Scores
-  /** Nota final ponderada (0-10), calculada y guardada. */
+  /** Nota final ponderada en escala 1-7, calculada y guardada. */
   finalScore: number
   comment?: string
   /** Fotos de la experiencia (platos, lugar). */

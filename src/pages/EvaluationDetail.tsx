@@ -41,7 +41,7 @@ export function EvaluationDetail() {
     if (navigator.share) {
       try {
         await navigator.share({
-          title: `${e.restaurantName} - ${e.finalScore.toFixed(1)}/10`,
+          title: `${e.restaurantName} - ${e.finalScore.toFixed(1)}/7`,
           text: `Mira mi evaluación de ${e.restaurantName}`,
           url: shareUrl,
         })

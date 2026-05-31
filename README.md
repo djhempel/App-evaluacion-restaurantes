@@ -17,7 +17,8 @@ comparte con un simple enlace.
   | 🍰 Postre | 20% |
   | 🏛️ Lugar | 10% |
   | 🤵 Atención | 15% |
-  - Cada criterio se puntúa de 1 a 10 y la app calcula la **nota final ponderada**.
+  - Cada criterio se puntúa en **escala chilena de 1 a 7** y la app calcula la
+    **nota final ponderada** (también de 1 a 7).
   - Cualquier criterio puede marcarse como **“No aplica”**: su peso se reparte
     proporcionalmente entre el resto (ideal para buffets / all-inclusive).
 - **Fotos** del lugar y de los platos (se comprimen en el celular antes de subir).
