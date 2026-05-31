@@ -80,7 +80,13 @@ verás una pantalla explicando qué falta.
    firebase deploy --only firestore:rules,firestore:indexes,storage
    ```
 
-## 📦 Build y despliegue (Firebase Hosting)
+## 📲 Publicar sin terminal (recomendado, desde el celular)
+
+¿No quieres usar la terminal? Sigue la guía **[PUBLICAR.md](./PUBLICAR.md)**: la app
+se publica sola con **GitHub Actions** y solo tienes que configurar unos secretos
+una vez desde el navegador.
+
+## 📦 Build y despliegue manual (Firebase Hosting)
 
 ```bash
 npm run build
