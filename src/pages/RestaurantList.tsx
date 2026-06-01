@@ -74,6 +74,8 @@ export function RestaurantList() {
       name: p.name,
       address: p.address ?? '',
       note: p.rating != null ? `Google ${p.rating.toFixed(1)} ⭐` : '',
+      lat: p.lat ?? null,
+      lng: p.lng ?? null,
       googlePlaceId: p.placeId ?? null,
       googleRating: p.rating ?? null,
       done: false,

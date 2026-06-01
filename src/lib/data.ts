@@ -134,6 +134,13 @@ export async function listWishlist(userId: string): Promise<WishlistItem[]> {
   return byNewest(snap.docs.map((d) => mapDoc<WishlistItem>(d)))
 }
 
+/** Wishlist compartida de un grupo (la ven y editan todos sus miembros). */
+export async function listGroupWishlist(groupId: string): Promise<WishlistItem[]> {
+  const q = query(collection(db, 'wishlist'), where('groupId', '==', groupId))
+  const snap = await getDocs(q)
+  return byNewest(snap.docs.map((d) => mapDoc<WishlistItem>(d)))
+}
+
 export async function addWishlist(
   data: Omit<WishlistItem, 'id' | 'createdAt'>,
 ): Promise<string> {

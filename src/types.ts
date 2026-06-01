@@ -143,6 +143,11 @@ export interface WishlistItem {
   address?: string
   note?: string
   restaurantId?: string | null
+  /** Coordenadas (para verlo en el mapa). */
+  lat?: number | null
+  lng?: number | null
+  /** Si pertenece a un grupo (wishlist compartida); null = personal. */
+  groupId?: string | null
   /** ID del lugar en Google (para cruzar con el descubrimiento cercano). */
   googlePlaceId?: string | null
   googleRating?: number | null

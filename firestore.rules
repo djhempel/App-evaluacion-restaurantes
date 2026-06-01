@@ -44,9 +44,15 @@ service cloud.firestore {
       allow delete: if signedIn() && resource.data.ownerId == request.auth.uid;
     }
 
-    // Wishlist: privada por usuario.
+    // Wishlist: personal (del dueño) o compartida con un grupo (sus miembros).
+    function wishlistMember() {
+      return resource.data.groupId != null
+        && exists(/databases/$(database)/documents/groups/$(resource.data.groupId))
+        && request.auth.uid in get(/databases/$(database)/documents/groups/$(resource.data.groupId)).data.memberUids;
+    }
     match /wishlist/{id} {
-      allow read, delete, update: if signedIn() && resource.data.userId == request.auth.uid;
+      allow read, update, delete: if signedIn()
+        && (resource.data.userId == request.auth.uid || wishlistMember());
       allow create: if signedIn() && request.resource.data.userId == request.auth.uid;
     }
   }

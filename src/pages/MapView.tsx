@@ -1,49 +1,80 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
-import { MapContainer, Marker, Popup, TileLayer, useMap } from 'react-leaflet'
-import L from 'leaflet'
-import iconUrl from 'leaflet/dist/images/marker-icon.png'
-import iconRetinaUrl from 'leaflet/dist/images/marker-icon-2x.png'
-import shadowUrl from 'leaflet/dist/images/marker-shadow.png'
-import { listRestaurants } from '../lib/data'
-import type { Restaurant } from '../types'
+import { useAuth } from '../contexts/AuthContext'
+import { listGroupWishlist, listMyGroups, listRestaurants, listWishlist } from '../lib/data'
+import { cuisineLabel } from '../config/cuisines'
+import type { Restaurant, WishlistItem } from '../types'
 import { Spinner } from '../components/Spinner'
+import { MarkersMap, type MapMarker } from '../components/MarkersMap'
 
-L.Marker.prototype.options.icon = L.icon({
-  iconUrl,
-  iconRetinaUrl,
-  shadowUrl,
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-})
-
-function FitBounds({ points }: { points: [number, number][] }) {
-  const map = useMap()
-  useEffect(() => {
-    if (points.length === 1) {
-      map.setView(points[0], 14)
-    } else if (points.length > 1) {
-      map.fitBounds(points, { padding: [40, 40] })
-    }
-  }, [map, points])
-  return null
-}
+const GREEN = '#1f9d55' // visitados / registrados
+const ORANGE = '#e8730c' // por visitar (wishlist)
 
 export function MapView() {
-  const [items, setItems] = useState<Restaurant[] | null>(null)
+  const { user } = useAuth()
+  const [restaurants, setRestaurants] = useState<Restaurant[]>([])
+  const [wishlist, setWishlist] = useState<WishlistItem[]>([])
+  const [loading, setLoading] = useState(true)
+  const [show, setShow] = useState<{ visited: boolean; pending: boolean }>({
+    visited: true,
+    pending: true,
+  })
 
   useEffect(() => {
-    listRestaurants()
-      .then(setItems)
-      .catch(() => setItems([]))
-  }, [])
+    if (!user) return
+    async function load() {
+      try {
+        const [rest, mine, groups] = await Promise.all([
+          listRestaurants(),
+          listWishlist(user!.uid),
+          listMyGroups(user!.uid),
+        ])
+        const groupLists = await Promise.all(groups.map((g) => listGroupWishlist(g.id)))
+        // Combina wishlist personal + de grupos, sin duplicar por id.
+        const byId = new Map<string, WishlistItem>()
+        for (const w of [...mine, ...groupLists.flat()]) byId.set(w.id, w)
+        setRestaurants(rest)
+        setWishlist([...byId.values()])
+      } finally {
+        setLoading(false)
+      }
+    }
+    load()
+  }, [user])
 
-  if (items === null) return <Spinner label="Cargando mapa…" />
+  if (loading) return <Spinner label="Cargando mapa…" />
 
-  const located = items.filter((r) => r.lat != null && r.lng != null)
-  const points = located.map((r) => [r.lat as number, r.lng as number] as [number, number])
-  const center: [number, number] = points[0] ?? [-33.4489, -70.6693] // Santiago por defecto
+  const markers: MapMarker[] = []
+  if (show.visited) {
+    for (const r of restaurants) {
+      if (r.lat != null && r.lng != null) {
+        markers.push({
+          id: `r-${r.id}`,
+          lat: r.lat,
+          lng: r.lng,
+          title: r.name,
+          subtitle: r.cuisine || (r.googleRating != null ? `⭐ ${r.googleRating}` : undefined),
+          color: GREEN,
+          to: `/restaurantes/${r.id}`,
+        })
+      }
+    }
+  }
+  if (show.pending) {
+    for (const w of wishlist) {
+      if (!w.done && w.lat != null && w.lng != null) {
+        markers.push({
+          id: `w-${w.id}`,
+          lat: w.lat,
+          lng: w.lng,
+          title: w.name,
+          subtitle: [cuisineLabel(w.cuisine), w.groupId ? '👥 grupo' : null]
+            .filter(Boolean)
+            .join(' · ') || undefined,
+          color: ORANGE,
+        })
+      }
+    }
+  }
 
   return (
     <>
@@ -51,30 +82,30 @@ export function MapView() {
         <h1>Mapa 🗺️</h1>
       </header>
       <div className="app-main">
-        {located.length === 0 ? (
+        <div className="row" style={{ marginBottom: 12, gap: 8 }}>
+          <button
+            className={`btn small ${show.visited ? '' : 'secondary'}`}
+            style={{ flex: 1 }}
+            onClick={() => setShow((s) => ({ ...s, visited: !s.visited }))}
+          >
+            🟢 Visitados
+          </button>
+          <button
+            className={`btn small ${show.pending ? '' : 'secondary'}`}
+            style={{ flex: 1 }}
+            onClick={() => setShow((s) => ({ ...s, pending: !s.pending }))}
+          >
+            🟠 Por visitar
+          </button>
+        </div>
+
+        {markers.length === 0 ? (
           <div className="empty">
             <div className="big">🗺️</div>
-            <p>Ningún restaurante tiene ubicación todavía. Agrégala al crearlos.</p>
+            <p>Nada que mostrar con ubicación todavía. Agrega lugares (con ubicación) o a tu wishlist.</p>
           </div>
         ) : (
-          <div className="map-box" style={{ height: '70vh' }}>
-            <MapContainer center={center} zoom={13} scrollWheelZoom>
-              <TileLayer
-                url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
-                attribution="&copy; OpenStreetMap"
-              />
-              <FitBounds points={points} />
-              {located.map((r) => (
-                <Marker key={r.id} position={[r.lat as number, r.lng as number]}>
-                  <Popup>
-                    <strong>{r.name}</strong>
-                    {r.cuisine && <div>{r.cuisine}</div>}
-                    <Link to={`/restaurantes/${r.id}`}>Ver detalle ›</Link>
-                  </Popup>
-                </Marker>
-              ))}
-            </MapContainer>
-          </div>
+          <MarkersMap markers={markers} />
         )}
       </div>
     </>
