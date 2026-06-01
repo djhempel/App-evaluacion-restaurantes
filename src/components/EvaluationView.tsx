@@ -1,19 +1,19 @@
-import { CRITERIA, MAX_SCORE, scoreColor, scorePercent } from '../config/scoring'
-import { dishCategoryLabel } from '../config/dishes'
+import { CRITERIA, FOOD_CRITERIA, MAX_SCORE, categoryAverage, scoreColor, scorePercent } from '../config/scoring'
 import type { Evaluation } from '../types'
 import { formatDate, formatMoney } from '../lib/utils'
 import { ScoreBadge } from './ScoreBadge'
 import { MiniMap, googleMapsLink } from './MiniMap'
 
 export function EvaluationView({ e }: { e: Evaluation }) {
+  const entries = e.dishEntries
+  const hasDishes =
+    !!entries && FOOD_CRITERIA.some((c) => (entries[c.key]?.length ?? 0) > 0)
+
   return (
     <>
       <div className="card text-center">
         <div className="muted" style={{ fontSize: 13 }}>{e.restaurantName}</div>
         {e.dishName && <h2 style={{ margin: '4px 0' }}>{e.dishName}</h2>}
-        {e.dishCategory && (
-          <div className="chip" style={{ margin: '0 auto' }}>{dishCategoryLabel(e.dishCategory)}</div>
-        )}
         <div className="score-big" style={{ color: scoreColor(e.finalScore) }}>
           {e.finalScore.toFixed(1)}
         </div>
@@ -32,6 +32,44 @@ export function EvaluationView({ e }: { e: Evaluation }) {
           ))}
         </div>
       )}
+
+      {/* Platos evaluados por categoría */}
+      {hasDishes &&
+        FOOD_CRITERIA.map((c) => {
+          const dishes = entries![c.key] ?? []
+          if (dishes.length === 0) return null
+          const avg = categoryAverage(dishes)
+          return (
+            <div className="card" key={c.key}>
+              <div className="criterion-head" style={{ marginBottom: 8 }}>
+                <span className="emoji">{c.emoji}</span>
+                <span className="title">{c.label}</span>
+                {avg != null && <ScoreBadge score={avg} />}
+              </div>
+              {dishes.map((d) => (
+                <div key={d.id} style={{ borderTop: '1px solid var(--line)', paddingTop: 10, marginTop: 10 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ flex: 1, fontWeight: 700 }}>{d.name || 'Plato'}</span>
+                    <ScoreBadge score={d.score} />
+                  </div>
+                  {d.price != null && (
+                    <div className="hint" style={{ marginTop: 2 }}>{formatMoney(d.price)}</div>
+                  )}
+                  {d.comment && <p style={{ margin: '6px 0 0' }}>“{d.comment}”</p>}
+                  {d.photos && d.photos.length > 0 && (
+                    <div className="photo-grid" style={{ marginTop: 8 }}>
+                      {d.photos.map((p) => (
+                        <a href={p} target="_blank" rel="noreferrer" key={p}>
+                          <img src={p} alt="" className="photo-thumb" />
+                        </a>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )
+        })}
 
       <div className="card">
         <div className="section-title" style={{ marginTop: 0 }}>Desglose</div>

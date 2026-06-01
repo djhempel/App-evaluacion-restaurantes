@@ -4,7 +4,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { useToast } from '../components/Toast'
 import { SubHeader } from '../components/Layout'
 import { Spinner } from '../components/Spinner'
-import { ScoreEditor } from '../components/ScoreEditor'
+import { MealEditor } from '../components/MealEditor'
 import { ScoreBadge } from '../components/ScoreBadge'
 import { PhotoUploader } from '../components/PhotoUploader'
 import {
@@ -15,10 +15,20 @@ import {
   updateEvaluation,
 } from '../lib/data'
 import { uploadImage } from '../lib/storage'
-import { computeFinalScore, emptyScores, ratedCount } from '../config/scoring'
-import { DISH_CATEGORIES, DISH_CATEGORY_BY_VALUE } from '../config/dishes'
+import {
+  FOOD_CRITERIA,
+  categoryAverage,
+  computeFinalScore,
+  ratedCount,
+} from '../config/scoring'
 import { getCurrentPosition } from '../lib/utils'
-import type { Restaurant, Scores } from '../types'
+import type { DishEntries, RatedDish, Restaurant, Scores } from '../types'
+
+const FOOD_KEYS = FOOD_CRITERIA.map((c) => c.key)
+
+function emptyDishEntries(): DishEntries {
+  return Object.fromEntries(FOOD_KEYS.map((k) => [k, [] as RatedDish[]]))
+}
 
 export function Evaluate() {
   const { user } = useAuth()
@@ -31,11 +41,18 @@ export function Evaluate() {
   const [restaurants, setRestaurants] = useState<Restaurant[] | null>(null)
   const [restaurantId, setRestaurantId] = useState(preselectId ?? '')
   const [restaurant, setRestaurant] = useState<Restaurant | null>(null)
-  const [dishId, setDishId] = useState('')
-  const [customDish, setCustomDish] = useState('')
-  const [customCategory, setCustomCategory] = useState('fondo')
 
-  const [scores, setScores] = useState<Scores>(emptyScores)
+  const [dishEntries, setDishEntries] = useState<DishEntries>(emptyDishEntries)
+  // Solo se usan lugar y atención; el resto se calcula desde los platos.
+  const [placeScores, setPlaceScores] = useState<Scores>({
+    pan: null,
+    entrada: null,
+    fondo: null,
+    postre: null,
+    lugar: 6,
+    atencion: 6,
+  })
+
   const [photos, setPhotos] = useState<string[]>([])
   const [comment, setComment] = useState('')
   const [price, setPrice] = useState('')
@@ -70,14 +87,28 @@ export function Evaluate() {
     getEvaluation(editId).then((e) => {
       if (!e) return
       setRestaurantId(e.restaurantId)
-      if (e.dishId) {
-        setDishId(e.dishId)
-      } else if (e.dishName) {
-        setDishId('__custom__')
-        setCustomDish(e.dishName)
-        if (e.dishCategory) setCustomCategory(e.dishCategory)
+      // Platos por categoría: usa los nuevos o migra desde el formato antiguo.
+      if (e.dishEntries) {
+        const base = emptyDishEntries()
+        for (const k of FOOD_KEYS) base[k] = e.dishEntries[k] ?? []
+        setDishEntries(base)
+      } else {
+        const base = emptyDishEntries()
+        for (const k of FOOD_KEYS) {
+          const v = e.scores?.[k]
+          if (v != null) {
+            base[k] = [
+              { id: crypto.randomUUID(), name: e.dishName ?? '', score: v, comment: '', photos: [], price: null },
+            ]
+          }
+        }
+        setDishEntries(base)
       }
-      setScores(e.scores)
+      setPlaceScores((p) => ({
+        ...p,
+        lugar: e.scores?.lugar ?? null,
+        atencion: e.scores?.atencion ?? null,
+      }))
       setPhotos(e.photos ?? [])
       setComment(e.comment ?? '')
       setPrice(e.pricePerPerson != null ? String(e.pricePerPerson) : '')
@@ -87,6 +118,18 @@ export function Evaluate() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editId])
 
+  // Construye las notas por criterio a partir de los platos + lugar/atención.
+  const scores = useMemo<Scores>(
+    () => ({
+      pan: categoryAverage(dishEntries.pan),
+      entrada: categoryAverage(dishEntries.entrada),
+      fondo: categoryAverage(dishEntries.fondo),
+      postre: categoryAverage(dishEntries.postre),
+      lugar: placeScores.lugar,
+      atencion: placeScores.atencion,
+    }),
+    [dishEntries, placeScores],
+  )
   const finalScore = useMemo(() => computeFinalScore(scores), [scores])
   const rated = ratedCount(scores)
 
@@ -106,21 +149,33 @@ export function Evaluate() {
   async function handleSave() {
     if (!user || !restaurant) return
     if (rated === 0) {
-      toast('Puntúa al menos un criterio')
+      toast('Agrega al menos un plato o una nota')
       return
     }
     setSaving(true)
     try {
-      const menuDish =
-        dishId && dishId !== '__custom__'
-          ? restaurant.dishes.find((d) => d.id === dishId)
-          : undefined
-      const dishName = menuDish ? menuDish.name : customDish.trim() || null
-      const dishCategory = menuDish
-        ? menuDish.category ?? null
-        : customDish.trim()
-          ? customCategory
-          : null
+      // Limpia: deja solo platos con nombre.
+      const cleanEntries: DishEntries = {}
+      for (const k of FOOD_KEYS) {
+        cleanEntries[k] = (dishEntries[k] ?? [])
+          .filter((d) => d.name.trim())
+          .map((d) => ({
+            ...d,
+            name: d.name.trim(),
+            comment: (d.comment ?? '').trim(),
+            photos: d.photos ?? [],
+            price: d.price ?? null,
+          }))
+      }
+      // Nombre representativo para el historial.
+      const summary =
+        cleanEntries.fondo?.[0]?.name ||
+        cleanEntries.entrada?.[0]?.name ||
+        cleanEntries.postre?.[0]?.name ||
+        cleanEntries.pan?.[0]?.name ||
+        null
+      const dishCount = FOOD_KEYS.reduce((n, k) => n + (cleanEntries[k]?.length ?? 0), 0)
+
       const data = {
         userId: user.uid,
         userName: user.displayName ?? 'Anónimo',
@@ -128,9 +183,8 @@ export function Evaluate() {
         restaurantId: restaurant.id,
         restaurantName: restaurant.name,
         restaurantCuisine: restaurant.cuisine ?? '',
-        dishId: menuDish ? menuDish.id : null,
-        dishName,
-        dishCategory,
+        dishName: dishCount > 1 ? `${summary} +${dishCount - 1}` : summary,
+        dishEntries: cleanEntries,
         scores,
         finalScore,
         comment: comment.trim(),
@@ -179,11 +233,7 @@ export function Evaluate() {
             <>
               <select
                 value={restaurantId}
-                onChange={(e) => {
-                  setRestaurantId(e.target.value)
-                  setDishId('')
-                  setCustomDish('')
-                }}
+                onChange={(e) => setRestaurantId(e.target.value)}
               >
                 <option value="">Elige un restaurante…</option>
                 {restaurants.map((r) => (
@@ -206,7 +256,7 @@ export function Evaluate() {
 
         {restaurant && (
           <>
-            {/* Menú / plato */}
+            {/* Menú del lugar */}
             {(restaurant.menuPhotos?.length > 0 || restaurant.menuUrl) && (
               <div className="card">
                 <span className="hint" style={{ fontWeight: 700, display: 'block', marginBottom: 6 }}>
@@ -229,45 +279,19 @@ export function Evaluate() {
               </div>
             )}
 
-            <label className="field">
-              <span>Plato evaluado (opcional)</span>
-              {restaurant.dishes?.length > 0 && (
-                <select value={dishId} onChange={(e) => setDishId(e.target.value)}>
-                  <option value="">Sin plato específico</option>
-                  {restaurant.dishes.map((d) => (
-                    <option key={d.id} value={d.id}>
-                      {DISH_CATEGORY_BY_VALUE[d.category ?? 'otro']?.emoji ?? '🍴'} {d.name}
-                    </option>
-                  ))}
-                  <option value="__custom__">✏️ Otro (fuera de la carta)</option>
-                </select>
-              )}
-              {(restaurant.dishes?.length === 0 || dishId === '__custom__') && (
-                <div className="row" style={{ marginTop: restaurant.dishes?.length > 0 ? 8 : 0 }}>
-                  <input
-                    placeholder="Escribe el plato (ej: Risotto de hongos)"
-                    value={customDish}
-                    onChange={(e) => setCustomDish(e.target.value)}
-                    style={{ flex: 2 }}
-                  />
-                  <select
-                    value={customCategory}
-                    onChange={(e) => setCustomCategory(e.target.value)}
-                    style={{ flex: 1 }}
-                  >
-                    {DISH_CATEGORIES.map((c) => (
-                      <option key={c.value} value={c.value}>
-                        {c.emoji} {c.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-            </label>
-
-            {/* Puntuación */}
-            <div className="section-title">Puntuación por criterio</div>
-            <ScoreEditor scores={scores} onChange={setScores} />
+            {/* Platos por categoría + lugar/atención */}
+            <div className="section-title">Platos y puntuación</div>
+            <p className="hint" style={{ marginTop: -4 }}>
+              Agrega cada plato que pediste con su nota. La categoría promedia sus platos.
+            </p>
+            <MealEditor
+              restaurant={restaurant}
+              dishEntries={dishEntries}
+              onChangeDishEntries={setDishEntries}
+              placeScores={placeScores}
+              onChangePlaceScores={setPlaceScores}
+              uploadPhoto={(f) => uploadImage(f, `evaluations/${user!.uid}`)}
+            />
 
             <div className="card text-center" style={{ position: 'sticky', bottom: 88, zIndex: 10 }}>
               <div className="muted" style={{ fontSize: 13 }}>Nota final ponderada</div>
@@ -275,12 +299,12 @@ export function Evaluate() {
                 {finalScore.toFixed(1)}
               </div>
               <div className="muted" style={{ fontSize: 12 }}>
-                sobre 7 · {rated} de 6 criterios
+                sobre 7 · {rated} de 6 categorías
               </div>
             </div>
 
-            {/* Fotos */}
-            <div className="section-title">Fotos</div>
+            {/* Fotos generales de la experiencia */}
+            <div className="section-title">Fotos de la experiencia (opcional)</div>
             <div className="card">
               <PhotoUploader
                 value={photos}
@@ -291,7 +315,7 @@ export function Evaluate() {
 
             {/* Detalles */}
             <label className="field">
-              <span>Comentario</span>
+              <span>Comentario general</span>
               <textarea
                 placeholder="¿Qué destacó? ¿Volverías?"
                 value={comment}

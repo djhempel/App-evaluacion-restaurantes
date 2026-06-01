@@ -16,17 +16,24 @@ export interface Criterion {
   weight: number
   emoji: string
   hint: string
+  /** 'food' admite varios platos; 'place' es una sola nota. */
+  kind: 'food' | 'place'
 }
 
 /** Definición de los criterios y pesos pedidos por el usuario. */
 export const CRITERIA: Criterion[] = [
-  { key: 'pan', label: 'Pan, mantequilla u otros', weight: 0.05, emoji: '🥖', hint: 'El recibimiento, el pan de cortesía, los snacks iniciales.' },
-  { key: 'entrada', label: 'Entrada', weight: 0.20, emoji: '🥗', hint: 'La entrada o primer plato.' },
-  { key: 'fondo', label: 'Fondo', weight: 0.30, emoji: '🍽️', hint: 'El plato principal. Lo que más pesa.' },
-  { key: 'postre', label: 'Postre', weight: 0.20, emoji: '🍰', hint: 'El cierre dulce.' },
-  { key: 'lugar', label: 'Lugar', weight: 0.10, emoji: '🏛️', hint: 'Ambiente, decoración, comodidad, limpieza.' },
-  { key: 'atencion', label: 'Atención', weight: 0.15, emoji: '🤵', hint: 'Servicio, amabilidad, tiempos.' },
+  { key: 'pan', label: 'Pan, mantequilla u otros', weight: 0.05, emoji: '🥖', kind: 'food', hint: 'El recibimiento, el pan de cortesía, los snacks iniciales.' },
+  { key: 'entrada', label: 'Entrada', weight: 0.20, emoji: '🥗', kind: 'food', hint: 'Las entradas o primeros platos.' },
+  { key: 'fondo', label: 'Fondo', weight: 0.30, emoji: '🍽️', kind: 'food', hint: 'Los platos principales. Lo que más pesa.' },
+  { key: 'postre', label: 'Postre', weight: 0.20, emoji: '🍰', kind: 'food', hint: 'Los postres.' },
+  { key: 'lugar', label: 'Lugar', weight: 0.10, emoji: '🏛️', kind: 'place', hint: 'Ambiente, decoración, comodidad, limpieza.' },
+  { key: 'atencion', label: 'Atención', weight: 0.15, emoji: '🤵', kind: 'place', hint: 'Servicio, amabilidad, tiempos.' },
 ]
+
+/** Criterios que admiten varios platos (entrada, fondo, etc.). */
+export const FOOD_CRITERIA = CRITERIA.filter((c) => c.kind === 'food')
+/** Criterios de una sola nota (lugar, atención). */
+export const PLACE_CRITERIA = CRITERIA.filter((c) => c.kind === 'place')
 
 export const CRITERIA_BY_KEY: Record<CriterionKey, Criterion> = CRITERIA.reduce(
   (acc, c) => {
@@ -45,6 +52,17 @@ export function emptyScores(): Scores {
     lugar: null,
     atencion: null,
   }
+}
+
+/** Promedio (1 decimal) de las notas de los platos de una categoría. */
+export function categoryAverage(
+  dishes: { score: number | null }[] | undefined,
+): number | null {
+  if (!dishes || dishes.length === 0) return null
+  const valid = dishes.filter((d) => d.score != null) as { score: number }[]
+  if (valid.length === 0) return null
+  const avg = valid.reduce((s, d) => s + d.score, 0) / valid.length
+  return Math.round(avg * 10) / 10
 }
 
 /**

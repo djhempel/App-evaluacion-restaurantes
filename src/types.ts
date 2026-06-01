@@ -50,6 +50,20 @@ export interface Restaurant {
 /** Una puntuación por criterio. `null` = "No aplica" (se reparte su peso). */
 export type Scores = Record<CriterionKey, number | null>
 
+/** Un plato evaluado individualmente dentro de una categoría. */
+export interface RatedDish {
+  id: string
+  name: string
+  /** Nota 1-7 del plato. */
+  score: number
+  comment?: string
+  photos?: string[]
+  price?: number | null
+}
+
+/** Platos evaluados por categoría de comida (entrada, fondo, postre, pan). */
+export type DishEntries = Record<string, RatedDish[]>
+
 export interface Evaluation {
   id: string
   userId: string
@@ -62,7 +76,10 @@ export interface Evaluation {
   dishName?: string | null
   /** Tipo del plato evaluado (entrada, fondo, postre, bebida…). */
   dishCategory?: string | null
+  /** Promedio por criterio (food = promedio de sus platos; place = nota directa). */
   scores: Scores
+  /** Detalle de los platos evaluados por categoría. */
+  dishEntries?: DishEntries
   /** Nota final ponderada en escala 1-7, calculada y guardada. */
   finalScore: number
   comment?: string
