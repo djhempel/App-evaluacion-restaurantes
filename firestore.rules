@@ -21,12 +21,14 @@ service cloud.firestore {
     }
 
     // Evaluaciones: públicas (cualquiera, incluso sin login, para los links),
-    // del dueño, o de un grupo (uid dentro de allowedUids).
+    // del dueño, o de un grupo (membresía verificada EN VIVO contra el grupo,
+    // para que sirva aunque alguien se una después de creada la evaluación).
     match /evaluations/{id} {
       allow read: if resource.data.isPublic == true
         || (signedIn() && resource.data.userId == request.auth.uid)
-        || (signedIn() && resource.data.allowedUids != null
-            && request.auth.uid in resource.data.allowedUids);
+        || (signedIn() && resource.data.groupId != null
+            && exists(/databases/$(database)/documents/groups/$(resource.data.groupId))
+            && request.auth.uid in get(/databases/$(database)/documents/groups/$(resource.data.groupId)).data.memberUids);
       allow create: if signedIn() && request.resource.data.userId == request.auth.uid;
       allow update, delete: if signedIn() && resource.data.userId == request.auth.uid;
     }

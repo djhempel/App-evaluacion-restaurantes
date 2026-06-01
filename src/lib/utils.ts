@@ -63,6 +63,8 @@ export interface PlaceResult {
   userRatingCount?: number | null
   /** ID del lugar en Google. */
   placeId?: string | null
+  /** Tipo principal según Google (ej. "Restaurante peruano"). */
+  type?: string | null
 }
 
 const GOOGLE_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string | undefined
@@ -214,6 +216,50 @@ export async function fetchPlaceDetails(placeId: string): Promise<PlaceDetails |
     console.warn('[fetchPlaceDetails] Google falló:', e)
     return null
   }
+}
+/* eslint-enable @typescript-eslint/no-explicit-any */
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/** Busca restaurantes cercanos en Google dentro de un radio (metros). */
+export async function searchNearbyPlaces(
+  lat: number,
+  lng: number,
+  radius = 2000,
+): Promise<PlaceResult[]> {
+  if (!GOOGLE_KEY) return []
+  await loadMaps()
+  const g = (window as any).google
+  const placesLib = g.maps.importLibrary
+    ? await g.maps.importLibrary('places')
+    : g.maps.places
+  const { Place, SearchNearbyRankPreference } = placesLib
+  const { places } = await Place.searchNearby({
+    fields: [
+      'displayName',
+      'formattedAddress',
+      'location',
+      'rating',
+      'userRatingCount',
+      'id',
+      'primaryTypeDisplayName',
+    ],
+    locationRestriction: { center: { lat, lng }, radius },
+    includedPrimaryTypes: ['restaurant'],
+    maxResultCount: 20,
+    rankPreference: SearchNearbyRankPreference.POPULARITY,
+    language: 'es',
+    region: 'cl',
+  })
+  return (places ?? []).map((p: any) => ({
+    name: p.displayName ?? '',
+    address: p.formattedAddress ?? '',
+    lat: typeof p.location?.lat === 'function' ? p.location.lat() : 0,
+    lng: typeof p.location?.lng === 'function' ? p.location.lng() : 0,
+    rating: p.rating ?? null,
+    userRatingCount: p.userRatingCount ?? null,
+    placeId: p.id ?? null,
+    type: p.primaryTypeDisplayName ?? null,
+  }))
 }
 /* eslint-enable @typescript-eslint/no-explicit-any */
 

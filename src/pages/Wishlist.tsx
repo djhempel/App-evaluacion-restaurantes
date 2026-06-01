@@ -13,6 +13,8 @@ export function Wishlist() {
   const [name, setName] = useState('')
   const [note, setNote] = useState('')
   const [address, setAddress] = useState('')
+  const [placeId, setPlaceId] = useState<string | null>(null)
+  const [rating, setRating] = useState<number | null>(null)
 
   // Buscador de lugares (Google si hay key, si no OpenStreetMap).
   const [placeQuery, setPlaceQuery] = useState('')
@@ -45,6 +47,8 @@ export function Wishlist() {
   function selectPlace(p: PlaceResult) {
     setName(p.name)
     setAddress(p.address)
+    setPlaceId(p.placeId ?? null)
+    setRating(p.rating ?? null)
     if (p.rating != null && !note.trim()) setNote(`Google ${p.rating.toFixed(1)} ⭐`)
     setPlaceResults([])
     setPlaceQuery('')
@@ -57,6 +61,8 @@ export function Wishlist() {
       name: name.trim(),
       note: note.trim(),
       address: address.trim(),
+      googlePlaceId: placeId,
+      googleRating: rating,
       done: false,
       restaurantId: null,
     }
@@ -65,6 +71,8 @@ export function Wishlist() {
     setName('')
     setNote('')
     setAddress('')
+    setPlaceId(null)
+    setRating(null)
     toast('Agregado a tu lista 📌')
   }
 

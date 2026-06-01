@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type ChangeEvent } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { useToast } from '../components/Toast'
 import { SubHeader } from '../components/Layout'
@@ -42,6 +42,7 @@ export function RestaurantForm() {
   const { user } = useAuth()
   const toast = useToast()
   const navigate = useNavigate()
+  const location = useLocation()
 
   const [loading, setLoading] = useState(editing)
   const [name, setName] = useState('')
@@ -69,6 +70,13 @@ export function RestaurantForm() {
     listRestaurants()
       .then(setAllRestaurants)
       .catch(() => undefined)
+  }, [])
+
+  // Precarga desde "Descubrir cerca" (botón Registrar).
+  useEffect(() => {
+    const place = (location.state as { place?: PlaceResult } | null)?.place
+    if (!editing && place) void selectPlace(place)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const cuisineOptions = useMemo(() => {
