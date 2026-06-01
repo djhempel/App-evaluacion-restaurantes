@@ -180,7 +180,7 @@ export function Wishlist() {
               style={{ whiteSpace: 'nowrap' }}
               onClick={() => setScope(g.id)}
             >
-              👥 {g.name}
+              {g.emoji ?? '👥'} {g.name}
             </button>
           ))}
         </div>

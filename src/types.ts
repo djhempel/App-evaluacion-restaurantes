@@ -164,6 +164,8 @@ export interface GroupMember {
 export interface Group {
   id: string
   name: string
+  /** Emoji representativo del grupo. */
+  emoji?: string
   ownerId: string
   ownerName?: string
   memberUids: string[]

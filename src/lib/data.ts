@@ -171,9 +171,11 @@ function makeInviteCode(): string {
 export async function createGroup(
   name: string,
   member: GroupMember,
+  emoji = '👥',
 ): Promise<string> {
   const ref = await addDoc(collection(db, 'groups'), {
     name: name.trim(),
+    emoji,
     ownerId: member.uid,
     ownerName: member.name,
     memberUids: [member.uid],
@@ -182,6 +184,13 @@ export async function createGroup(
     createdAt: serverTimestamp(),
   })
   return ref.id
+}
+
+export async function updateGroup(
+  id: string,
+  data: Partial<Pick<Group, 'name' | 'emoji'>>,
+): Promise<void> {
+  await updateDoc(doc(db, 'groups', id), data)
 }
 
 export async function listMyGroups(uid: string): Promise<Group[]> {

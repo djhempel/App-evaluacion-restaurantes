@@ -7,12 +7,15 @@ import type { Group } from '../types'
 import { Spinner } from '../components/Spinner'
 import { SubHeader } from '../components/Layout'
 
+const EMOJI_CHOICES = ['👥', '💑', '👨‍👩‍👧‍👦', '🍷', '🍽️', '🍕', '🍣', '🥩', '🍔', '🏖️', '⭐', '🎉']
+
 export function Groups() {
   const { user } = useAuth()
   const toast = useToast()
   const navigate = useNavigate()
   const [groups, setGroups] = useState<Group[] | null>(null)
   const [name, setName] = useState('')
+  const [emoji, setEmoji] = useState('👥')
   const [creating, setCreating] = useState(false)
 
   useEffect(() => {
@@ -24,11 +27,15 @@ export function Groups() {
     if (!user || !name.trim()) return
     setCreating(true)
     try {
-      const id = await createGroup(name.trim(), {
-        uid: user.uid,
-        name: user.displayName ?? 'Anónimo',
-        photo: user.photoURL ?? '',
-      })
+      const id = await createGroup(
+        name.trim(),
+        {
+          uid: user.uid,
+          name: user.displayName ?? 'Anónimo',
+          photo: user.photoURL ?? '',
+        },
+        emoji,
+      )
       toast('Grupo creado 🎉')
       navigate(`/grupos/${id}`)
     } catch (e) {
@@ -46,8 +53,30 @@ export function Groups() {
       <SubHeader title="Grupos 👥" />
       <div className="app-main">
         <div className="card">
+          <label className="field" style={{ marginBottom: 8 }}>
+            <span>Emoji</span>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {EMOJI_CHOICES.map((e) => (
+                <button
+                  key={e}
+                  type="button"
+                  onClick={() => setEmoji(e)}
+                  style={{
+                    fontSize: 22,
+                    padding: '4px 8px',
+                    borderRadius: 8,
+                    border: emoji === e ? '2px solid var(--orange)' : '1px solid var(--line)',
+                    background: 'none',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {e}
+                </button>
+              ))}
+            </div>
+          </label>
           <label className="field" style={{ marginBottom: 10 }}>
-            <span>Crear un grupo</span>
+            <span>Nombre del grupo</span>
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -71,7 +100,7 @@ export function Groups() {
           <div className="card">
             {groups.map((g) => (
               <Link key={g.id} to={`/grupos/${g.id}`} className="list-item" style={{ color: 'inherit' }}>
-                <span style={{ fontSize: 22 }}>👥</span>
+                <span style={{ fontSize: 22 }}>{g.emoji ?? '👥'}</span>
                 <div className="meta">
                   <div className="name">{g.name}</div>
                   <div className="sub">
