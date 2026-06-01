@@ -66,39 +66,54 @@ export interface PlaceResult {
 
 const GOOGLE_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string | undefined
 
+/* Carga el Maps JavaScript API una sola vez (la REST no permite CORS desde
+   el navegador; la librería JS sí funciona con la key restringida por dominio). */
+let mapsPromise: Promise<unknown> | null = null
+function loadMaps(): Promise<unknown> {
+  if (mapsPromise) return mapsPromise
+  mapsPromise = new Promise((resolve, reject) => {
+    const w = window as unknown as { google?: { maps?: unknown } }
+    if (w.google?.maps) {
+      resolve(w.google)
+      return
+    }
+    const script = document.createElement('script')
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_KEY}&libraries=places&v=weekly&language=es&region=CL&loading=async`
+    script.async = true
+    script.onload = () => resolve(w.google)
+    script.onerror = () => reject(new Error('maps-load-failed'))
+    document.head.appendChild(script)
+  })
+  return mapsPromise
+}
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /** Busca lugares con Google Places (incluye la nota de Google). */
 async function googleSearchPlaces(query: string): Promise<PlaceResult[]> {
-  const res = await fetch('https://places.googleapis.com/v1/places:searchText', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-Goog-Api-Key': GOOGLE_KEY as string,
-      'X-Goog-FieldMask':
-        'places.id,places.displayName,places.formattedAddress,places.location,places.rating,places.userRatingCount',
-    },
-    body: JSON.stringify({ textQuery: query, languageCode: 'es', regionCode: 'CL' }),
+  await loadMaps()
+  const g = (window as any).google
+  const placesLib = g.maps.importLibrary
+    ? await g.maps.importLibrary('places')
+    : g.maps.places
+  const Place = placesLib.Place
+  const { places } = await Place.searchByText({
+    textQuery: query,
+    fields: ['displayName', 'formattedAddress', 'location', 'rating', 'userRatingCount', 'id'],
+    language: 'es',
+    region: 'cl',
+    maxResultCount: 6,
   })
-  if (!res.ok) throw new Error('google-failed')
-  const data = (await res.json()) as {
-    places?: Array<{
-      id: string
-      displayName?: { text?: string }
-      formattedAddress?: string
-      location?: { latitude: number; longitude: number }
-      rating?: number
-      userRatingCount?: number
-    }>
-  }
-  return (data.places ?? []).map((p) => ({
-    name: p.displayName?.text ?? p.formattedAddress ?? '',
+  return (places ?? []).map((p: any) => ({
+    name: p.displayName ?? '',
     address: p.formattedAddress ?? '',
-    lat: p.location?.latitude ?? 0,
-    lng: p.location?.longitude ?? 0,
+    lat: typeof p.location?.lat === 'function' ? p.location.lat() : 0,
+    lng: typeof p.location?.lng === 'function' ? p.location.lng() : 0,
     rating: p.rating ?? null,
     userRatingCount: p.userRatingCount ?? null,
     placeId: p.id ?? null,
   }))
 }
+/* eslint-enable @typescript-eslint/no-explicit-any */
 
 /** Búsqueda con OpenStreetMap / Nominatim (sin nota; respaldo gratuito). */
 async function osmSearchPlaces(query: string): Promise<PlaceResult[]> {
@@ -133,8 +148,9 @@ export async function searchPlaces(query: string): Promise<PlaceResult[]> {
   if (GOOGLE_KEY) {
     try {
       return await googleSearchPlaces(query)
-    } catch {
-      /* si Google falla (cuota, red…), usamos OSM */
+    } catch (e) {
+      // Si Google falla (cuota, red, config…), usamos OSM como respaldo.
+      console.warn('[searchPlaces] Google falló, usando OpenStreetMap:', e)
     }
   }
   return osmSearchPlaces(query)

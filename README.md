@@ -85,11 +85,16 @@ verás una pantalla explicando qué falta.
 Para que al buscar un lugar se precargue la **nota de Google**:
 
 1. En <https://console.cloud.google.com> elige el **mismo proyecto** de Firebase.
-2. **APIs y servicios → Biblioteca** → activa **Places API (New)**.
+2. **APIs y servicios → Biblioteca** → activa **dos** APIs:
+   - **Maps JavaScript API** (carga la librería en el navegador), y
+   - **Places API (New)** (la búsqueda con nota).
+   > La app usa la librería *Places* del Maps JavaScript API (no la REST), porque
+   > la REST no permite llamadas directas desde el navegador (CORS).
 3. **Credenciales → Crear credencial → Clave de API**. En la clave:
    - **Restricción de aplicación:** *Sitios web (HTTP referrer)* → agrega tu dominio
      (ej. `https://tu-proyecto.web.app/*`).
-   - **Restricción de API:** marca solo *Places API (New)*.
+   - **Restricción de API:** si la usas, marca **ambas**: *Maps JavaScript API* y
+     *Places API (New)*. (O déjala en *No restringir*.)
 4. **Tope de cuota a prueba de cobros:** *APIs y servicios → Places API (New) →
    Cuotas* → baja el límite de *Requests per day* a un número bajo (ej. **100/día**).
    Si se superara, la búsqueda simplemente deja de responder ese día — **nunca cobra**.
