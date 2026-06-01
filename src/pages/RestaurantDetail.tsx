@@ -80,6 +80,28 @@ export function RestaurantDetail() {
           )}
         </div>
 
+        {(r.menuPhotos?.length > 0 || r.menuUrl) && (
+          <>
+            <div className="section-title">Menú</div>
+            <div className="card">
+              {r.menuUrl && (
+                <a className="btn secondary block" href={r.menuUrl} target="_blank" rel="noreferrer" style={{ marginBottom: r.menuPhotos?.length > 0 ? 10 : 0 }}>
+                  🔗 Ver carta web
+                </a>
+              )}
+              {r.menuPhotos?.length > 0 && (
+                <div className="photo-grid">
+                  {r.menuPhotos.map((m) => (
+                    <a href={m} target="_blank" rel="noreferrer" key={m}>
+                      <img src={m} alt="Menú" className="photo-thumb" />
+                    </a>
+                  ))}
+                </div>
+              )}
+            </div>
+          </>
+        )}
+
         {r.lat != null && r.lng != null && (
           <div style={{ marginTop: 16 }}>
             <MiniMap lat={r.lat} lng={r.lng} />
@@ -143,28 +165,6 @@ export function RestaurantDetail() {
                   {rev.text && <div className="sub">{rev.text}</div>}
                 </div>
               ))}
-            </div>
-          </>
-        )}
-
-        {(r.menuPhotos?.length > 0 || r.menuUrl) && (
-          <>
-            <div className="section-title">Menú</div>
-            <div className="card">
-              {r.menuUrl && (
-                <a className="btn secondary block" href={r.menuUrl} target="_blank" rel="noreferrer" style={{ marginBottom: r.menuPhotos?.length > 0 ? 10 : 0 }}>
-                  🔗 Ver carta web
-                </a>
-              )}
-              {r.menuPhotos?.length > 0 && (
-                <div className="photo-grid">
-                  {r.menuPhotos.map((m) => (
-                    <a href={m} target="_blank" rel="noreferrer" key={m}>
-                      <img src={m} alt="Menú" className="photo-thumb" />
-                    </a>
-                  ))}
-                </div>
-              )}
             </div>
           </>
         )}

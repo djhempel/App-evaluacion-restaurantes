@@ -80,12 +80,18 @@ export function Evaluate() {
       setRestaurant(null)
       return
     }
-    getRestaurant(restaurantId).then((r) => {
-      setRestaurant(r)
-      if (r && r.lat != null && r.lng != null && !loc) {
-        setLoc({ lat: r.lat, lng: r.lng })
-      }
-    })
+    getRestaurant(restaurantId)
+      .then((r) => {
+        setRestaurant(r)
+        if (r && r.lat != null && r.lng != null && !loc) {
+          setLoc({ lat: r.lat, lng: r.lng })
+        }
+        if (!r) toast('No se encontró ese restaurante')
+      })
+      .catch((e) => {
+        console.error(e)
+        toast('No se pudo cargar el restaurante')
+      })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [restaurantId])
 

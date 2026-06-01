@@ -3,6 +3,7 @@ import { useAuth } from './contexts/AuthContext'
 import { ToastProvider } from './components/Toast'
 import { Spinner } from './components/Spinner'
 import { Layout } from './components/Layout'
+import { ErrorBoundary } from './components/ErrorBoundary'
 import { Login } from './pages/Login'
 import { NotConfigured } from './pages/NotConfigured'
 import { Home } from './pages/Home'
@@ -36,6 +37,7 @@ export default function App() {
 
   return (
     <ToastProvider>
+      <ErrorBoundary>
       <Routes>
         {/* Públicas */}
         <Route path="/login" element={<Login />} />
@@ -121,6 +123,7 @@ export default function App() {
 
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+      </ErrorBoundary>
     </ToastProvider>
   )
 }
