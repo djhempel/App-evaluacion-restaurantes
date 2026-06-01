@@ -67,6 +67,14 @@ export default function App() {
           }
         />
         <Route
+          path="/evaluacion/:id/editar"
+          element={
+            <Protected>
+              <Evaluate />
+            </Protected>
+          }
+        />
+        <Route
           path="/evaluacion/:id"
           element={
             <Protected>

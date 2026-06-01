@@ -80,6 +80,13 @@ export function EvaluationDetail() {
             <button className="btn block" onClick={share} style={{ marginTop: 16 }}>
               🔗 Compartir
             </button>
+            <button
+              className="btn secondary block"
+              onClick={() => navigate(`/evaluacion/${e.id}/editar`)}
+              style={{ marginTop: 10 }}
+            >
+              ✏️ Editar evaluación
+            </button>
             <div className="row" style={{ marginTop: 10 }}>
               <button className="btn secondary small" onClick={togglePublic}>
                 {e.isPublic ? '🔒 Hacer privada' : '🌐 Hacer pública'}

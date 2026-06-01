@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { useToast } from '../components/Toast'
 import { SubHeader } from '../components/Layout'
@@ -7,7 +7,13 @@ import { Spinner } from '../components/Spinner'
 import { ScoreEditor } from '../components/ScoreEditor'
 import { ScoreBadge } from '../components/ScoreBadge'
 import { PhotoUploader } from '../components/PhotoUploader'
-import { createEvaluation, getRestaurant, listRestaurants } from '../lib/data'
+import {
+  createEvaluation,
+  getEvaluation,
+  getRestaurant,
+  listRestaurants,
+  updateEvaluation,
+} from '../lib/data'
 import { uploadImage } from '../lib/storage'
 import { computeFinalScore, emptyScores, ratedCount } from '../config/scoring'
 import { DISH_CATEGORIES, DISH_CATEGORY_BY_VALUE } from '../config/dishes'
@@ -20,6 +26,7 @@ export function Evaluate() {
   const navigate = useNavigate()
   const [params] = useSearchParams()
   const preselectId = params.get('restaurant')
+  const { id: editId } = useParams() // presente al editar (/evaluacion/:id/editar)
 
   const [restaurants, setRestaurants] = useState<Restaurant[] | null>(null)
   const [restaurantId, setRestaurantId] = useState(preselectId ?? '')
@@ -54,9 +61,31 @@ export function Evaluate() {
         setLoc({ lat: r.lat, lng: r.lng })
       }
     })
-    setDishId('')
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [restaurantId])
+
+  // Modo edición: precarga la evaluación existente.
+  useEffect(() => {
+    if (!editId) return
+    getEvaluation(editId).then((e) => {
+      if (!e) return
+      setRestaurantId(e.restaurantId)
+      if (e.dishId) {
+        setDishId(e.dishId)
+      } else if (e.dishName) {
+        setDishId('__custom__')
+        setCustomDish(e.dishName)
+        if (e.dishCategory) setCustomCategory(e.dishCategory)
+      }
+      setScores(e.scores)
+      setPhotos(e.photos ?? [])
+      setComment(e.comment ?? '')
+      setPrice(e.pricePerPerson != null ? String(e.pricePerPerson) : '')
+      setIsPublic(e.isPublic)
+      if (e.lat != null && e.lng != null) setLoc({ lat: e.lat, lng: e.lng })
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editId])
 
   const finalScore = useMemo(() => computeFinalScore(scores), [scores])
   const rated = ratedCount(scores)
@@ -92,7 +121,7 @@ export function Evaluate() {
         : customDish.trim()
           ? customCategory
           : null
-      const id = await createEvaluation({
+      const data = {
         userId: user.uid,
         userName: user.displayName ?? 'Anónimo',
         userPhoto: user.photoURL ?? '',
@@ -112,9 +141,16 @@ export function Evaluate() {
         lng: loc?.lng ?? restaurant.lng ?? null,
         address: restaurant.address ?? '',
         isPublic,
-      })
-      toast('¡Evaluación guardada! 🎉')
-      navigate(`/evaluacion/${id}`, { replace: true })
+      }
+      if (editId) {
+        await updateEvaluation(editId, data)
+        toast('Cambios guardados ✅')
+        navigate(`/evaluacion/${editId}`, { replace: true })
+      } else {
+        const id = await createEvaluation(data)
+        toast('¡Evaluación guardada! 🎉')
+        navigate(`/evaluacion/${id}`, { replace: true })
+      }
     } catch (e) {
       console.error(e)
       toast('Error al guardar')
@@ -127,7 +163,7 @@ export function Evaluate() {
 
   return (
     <>
-      <SubHeader title="Nueva evaluación" />
+      <SubHeader title={editId ? 'Editar evaluación' : 'Nueva evaluación'} />
       <div className="app-main">
         {/* Restaurante */}
         <label className="field">
@@ -141,7 +177,14 @@ export function Evaluate() {
             </div>
           ) : (
             <>
-              <select value={restaurantId} onChange={(e) => setRestaurantId(e.target.value)}>
+              <select
+                value={restaurantId}
+                onChange={(e) => {
+                  setRestaurantId(e.target.value)
+                  setDishId('')
+                  setCustomDish('')
+                }}
+              >
                 <option value="">Elige un restaurante…</option>
                 {restaurants.map((r) => (
                   <option key={r.id} value={r.id}>
@@ -304,7 +347,7 @@ export function Evaluate() {
             </div>
 
             <button className="btn block" onClick={handleSave} disabled={saving}>
-              {saving ? 'Guardando…' : 'Guardar evaluación'}
+              {saving ? 'Guardando…' : editId ? 'Guardar cambios' : 'Guardar evaluación'}
             </button>
           </>
         )}
