@@ -11,6 +11,7 @@ import {
   type PlaceResult,
 } from '../lib/utils'
 import type { Restaurant, WishlistItem } from '../types'
+import { cuisineLabel } from '../config/cuisines'
 import { Spinner } from '../components/Spinner'
 
 const RADII = [
@@ -155,7 +156,7 @@ export function RestaurantList() {
                     <div className="meta">
                       <div className="name">{r.name}</div>
                       <div className="sub">
-                        {r.cuisine ? `${r.cuisine} · ` : ''}
+                        {r.cuisine ? `${cuisineLabel(r.cuisine)} · ` : ''}
                         {r.dishes?.length ?? 0} platos
                         {r.googleRating != null ? ` · ⭐ ${r.googleRating.toFixed(1)}` : ''}
                       </div>

@@ -8,6 +8,7 @@ import { SubHeader } from '../components/Layout'
 import { ScoreBadge } from '../components/ScoreBadge'
 import { MiniMap, googleMapsLink } from '../components/MiniMap'
 import { dishCategoryLabel } from '../config/dishes'
+import { cuisineLabel } from '../config/cuisines'
 import { formatDate, formatMoney } from '../lib/utils'
 
 export function RestaurantDetail() {
@@ -48,7 +49,7 @@ export function RestaurantDetail() {
         )}
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
-          {r.cuisine && <span className="chip">🍴 {r.cuisine}</span>}
+          {r.cuisine && <span className="chip">{cuisineLabel(r.cuisine)}</span>}
           {evals.length > 0 && <ScoreBadge score={avg} showLabel />}
           <span className="chip">{evals.length} evaluaciones</span>
           {r.googleRating != null && (

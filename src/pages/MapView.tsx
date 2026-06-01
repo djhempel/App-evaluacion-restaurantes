@@ -52,7 +52,7 @@ export function MapView() {
           lat: r.lat,
           lng: r.lng,
           title: r.name,
-          subtitle: r.cuisine || (r.googleRating != null ? `⭐ ${r.googleRating}` : undefined),
+          subtitle: cuisineLabel(r.cuisine) || (r.googleRating != null ? `⭐ ${r.googleRating}` : undefined),
           color: GREEN,
           to: `/restaurantes/${r.id}`,
         })

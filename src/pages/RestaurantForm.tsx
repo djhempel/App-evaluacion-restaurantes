@@ -18,6 +18,7 @@ import {
 } from '../lib/utils'
 import type { GoogleReview } from '../types'
 import { DISH_CATEGORIES } from '../config/dishes'
+import { CUISINES, CUISINE_BY_VALUE } from '../config/cuisines'
 import { parseMenuFromFile, parseMenuFromLink, parseMenuFromUrls, type ParsedDish } from '../lib/menu'
 import type { Dish, Restaurant } from '../types'
 
@@ -79,11 +80,6 @@ export function RestaurantForm() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const cuisineOptions = useMemo(() => {
-    const set = new Set(allRestaurants.map((r) => (r.cuisine ?? '').trim()).filter(Boolean))
-    return Array.from(set).sort()
-  }, [allRestaurants])
-
   // Posibles duplicados por nombre parecido (solo al crear).
   const possibleDuplicates = useMemo(() => {
     const n = normalizeText(name)
@@ -142,7 +138,6 @@ export function RestaurantForm() {
         const d = await fetchPlaceDetails(p.placeId)
         if (d) {
           setGoogle({ ...base, ...d })
-          if (!cuisine.trim() && d.type) setCuisine(d.type)
           toast(d.rating != null ? `Cargado · Google ${d.rating}★` : 'Datos del lugar cargados 📍')
         }
       } finally {
@@ -319,10 +314,9 @@ export function RestaurantForm() {
     <>
       <SubHeader title={editing ? 'Editar restaurante' : 'Nuevo restaurante'} />
       <div className="app-main">
-        {!editing && (
-          <div className="card">
-            <label className="field" style={{ marginBottom: placeResults.length || placeSearching ? 10 : 0 }}>
-              <span>🔎 Buscar el lugar (autocompletar)</span>
+        <div className="card">
+          <label className="field" style={{ marginBottom: placeResults.length || placeSearching ? 10 : 0 }}>
+            <span>{editing ? '🔗 Asociar a un lugar de Google' : '🔎 Buscar el lugar (autocompletar)'}</span>
               <input
                 value={placeQuery}
                 onChange={(e) => setPlaceQuery(e.target.value)}
@@ -357,7 +351,6 @@ export function RestaurantForm() {
               </button>
             ))}
           </div>
-        )}
 
         {(google || placeDetailsBusy) && (
           <div className="card">
@@ -420,22 +413,19 @@ export function RestaurantForm() {
           </div>
         )}
         <label className="field">
-          <span>Tipo de cocina</span>
-          <input
-            value={cuisine}
-            onChange={(e) => setCuisine(e.target.value)}
-            placeholder="Empieza a escribir: peruana, italiana…"
-            list="cuisine-options"
-            autoComplete="off"
-          />
-          <datalist id="cuisine-options">
-            {cuisineOptions.map((c) => (
-              <option key={c} value={c} />
+          <span>Tipo de comida</span>
+          <select value={cuisine} onChange={(e) => setCuisine(e.target.value)}>
+            <option value="">Sin especificar</option>
+            {cuisine && !CUISINE_BY_VALUE[cuisine] && <option value={cuisine}>{cuisine}</option>}
+            {CUISINES.map((c) => (
+              <option key={c.value} value={c.value}>
+                {c.emoji} {c.label}
+              </option>
             ))}
-          </datalist>
-          <p className="hint">
-            Te sugiere tipos ya usados. Si no está, escríbelo y se agrega como nuevo.
-          </p>
+          </select>
+          {google?.type && (
+            <p className="hint">Google lo clasifica como: {google.type}</p>
+          )}
         </label>
         <label className="field">
           <span>Dirección</span>
