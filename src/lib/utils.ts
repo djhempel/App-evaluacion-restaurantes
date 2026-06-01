@@ -1,4 +1,5 @@
 import type { Timestamp } from 'firebase/firestore'
+import type { GoogleReview } from '../types'
 
 export function formatDate(ts?: Timestamp): string {
   if (!ts) return ''
@@ -136,6 +137,85 @@ async function osmSearchPlaces(query: string): Promise<PlaceResult[]> {
     lng: Number(d.lon),
   }))
 }
+
+/** Detalles ricos de un lugar de Google (se piden solo al seleccionarlo). */
+export interface PlaceDetails {
+  rating: number | null
+  userRatingCount: number | null
+  type: string | null
+  phone: string | null
+  phoneIntl: string | null
+  website: string | null
+  mapsUri: string | null
+  priceLevel: number | null
+  hours: string[] | null
+  summary: string | null
+  reviews: GoogleReview[] | null
+}
+
+const PRICE_LEVEL_MAP: Record<string, number> = {
+  PRICE_LEVEL_FREE: 0,
+  PRICE_LEVEL_INEXPENSIVE: 1,
+  PRICE_LEVEL_MODERATE: 2,
+  PRICE_LEVEL_EXPENSIVE: 3,
+  PRICE_LEVEL_VERY_EXPENSIVE: 4,
+}
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/** Pide a Google los datos completos de un lugar (teléfono, reseñas, etc.). */
+export async function fetchPlaceDetails(placeId: string): Promise<PlaceDetails | null> {
+  if (!GOOGLE_KEY) return null
+  try {
+    await loadMaps()
+    const g = (window as any).google
+    const placesLib = g.maps.importLibrary
+      ? await g.maps.importLibrary('places')
+      : g.maps.places
+    const place = new placesLib.Place({ id: placeId })
+    await place.fetchFields({
+      fields: [
+        'rating',
+        'userRatingCount',
+        'primaryTypeDisplayName',
+        'nationalPhoneNumber',
+        'internationalPhoneNumber',
+        'websiteURI',
+        'googleMapsURI',
+        'priceLevel',
+        'regularOpeningHours',
+        'editorialSummary',
+        'reviews',
+      ],
+    })
+    const reviews: GoogleReview[] = (place.reviews ?? []).slice(0, 5).map((r: any) => ({
+      author: r.authorAttribution?.displayName ?? undefined,
+      rating: r.rating ?? undefined,
+      text: typeof r.text === 'string' ? r.text : (r.text?.text ?? undefined),
+      time: r.relativePublishTimeDescription ?? undefined,
+    }))
+    return {
+      rating: place.rating ?? null,
+      userRatingCount: place.userRatingCount ?? null,
+      type: place.primaryTypeDisplayName ?? null,
+      phone: place.nationalPhoneNumber ?? null,
+      phoneIntl: place.internationalPhoneNumber ?? null,
+      website: place.websiteURI ?? null,
+      mapsUri: place.googleMapsURI ?? null,
+      priceLevel:
+        typeof place.priceLevel === 'string' ? (PRICE_LEVEL_MAP[place.priceLevel] ?? null) : null,
+      hours: place.regularOpeningHours?.weekdayDescriptions ?? null,
+      summary:
+        typeof place.editorialSummary === 'string'
+          ? place.editorialSummary
+          : (place.editorialSummary?.text ?? null),
+      reviews: reviews.length ? reviews : null,
+    }
+  } catch (e) {
+    console.warn('[fetchPlaceDetails] Google falló:', e)
+    return null
+  }
+}
+/* eslint-enable @typescript-eslint/no-explicit-any */
 
 /** ¿Está configurada la búsqueda de Google? */
 export const hasGooglePlaces = Boolean(GOOGLE_KEY)

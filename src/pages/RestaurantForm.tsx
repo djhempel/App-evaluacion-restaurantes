@@ -8,6 +8,7 @@ import { PhotoUploader } from '../components/PhotoUploader'
 import { createRestaurant, getRestaurant, listRestaurants, updateRestaurant } from '../lib/data'
 import { uploadImage } from '../lib/storage'
 import {
+  fetchPlaceDetails,
   getCurrentPosition,
   hasGooglePlaces,
   normalizeText,
@@ -15,8 +16,24 @@ import {
   searchPlaces,
   type PlaceResult,
 } from '../lib/utils'
+import type { GoogleReview } from '../types'
 import { DISH_CATEGORIES } from '../config/dishes'
 import type { Dish, Restaurant } from '../types'
+
+interface GoogleInfo {
+  rating: number | null
+  count: number | null
+  placeId: string | null
+  type: string | null
+  phone: string | null
+  phoneIntl: string | null
+  website: string | null
+  mapsUri: string | null
+  priceLevel: number | null
+  hours: string[] | null
+  summary: string | null
+  reviews: GoogleReview[] | null
+}
 
 export function RestaurantForm() {
   const { id } = useParams()
@@ -30,11 +47,7 @@ export function RestaurantForm() {
   const [cuisine, setCuisine] = useState('')
   const [address, setAddress] = useState('')
   const [loc, setLoc] = useState<{ lat: number; lng: number } | null>(null)
-  const [google, setGoogle] = useState<{
-    rating: number | null
-    count: number | null
-    placeId: string | null
-  } | null>(null)
+  const [google, setGoogle] = useState<GoogleInfo | null>(null)
   const [photos, setPhotos] = useState<string[]>([])
   const [menuPhotos, setMenuPhotos] = useState<string[]>([])
   const [menuUrl, setMenuUrl] = useState('')
@@ -47,6 +60,7 @@ export function RestaurantForm() {
   const [placeQuery, setPlaceQuery] = useState('')
   const [placeResults, setPlaceResults] = useState<PlaceResult[]>([])
   const [placeSearching, setPlaceSearching] = useState(false)
+  const [placeDetailsBusy, setPlaceDetailsBusy] = useState(false)
 
   // Restaurantes existentes (para sugerir cocinas y avisar duplicados).
   useEffect(() => {
@@ -89,16 +103,44 @@ export function RestaurantForm() {
     return () => clearTimeout(t)
   }, [placeQuery])
 
-  function selectPlace(p: PlaceResult) {
+  async function selectPlace(p: PlaceResult) {
     if (!name.trim()) setName(p.name)
     setAddress(p.address)
     setLoc({ lat: p.lat, lng: p.lng })
-    if (p.rating != null || p.placeId) {
-      setGoogle({ rating: p.rating ?? null, count: p.userRatingCount ?? null, placeId: p.placeId ?? null })
-    }
     setPlaceResults([])
     setPlaceQuery('')
-    toast(p.rating != null ? `Datos cargados · Google ${p.rating}★` : 'Datos del lugar cargados 📍')
+    // Datos básicos al instante…
+    const base: GoogleInfo = {
+      rating: p.rating ?? null,
+      count: p.userRatingCount ?? null,
+      placeId: p.placeId ?? null,
+      type: null,
+      phone: null,
+      phoneIntl: null,
+      website: null,
+      mapsUri: null,
+      priceLevel: null,
+      hours: null,
+      summary: null,
+      reviews: null,
+    }
+    setGoogle(p.placeId || p.rating != null ? base : null)
+    // …y los datos ricos (teléfono, reseñas, horario…) si es un lugar de Google.
+    if (p.placeId) {
+      setPlaceDetailsBusy(true)
+      try {
+        const d = await fetchPlaceDetails(p.placeId)
+        if (d) {
+          setGoogle({ ...base, ...d })
+          if (!cuisine.trim() && d.type) setCuisine(d.type)
+          toast(d.rating != null ? `Cargado · Google ${d.rating}★` : 'Datos del lugar cargados 📍')
+        }
+      } finally {
+        setPlaceDetailsBusy(false)
+      }
+    } else {
+      toast('Datos del lugar cargados 📍')
+    }
   }
 
   useEffect(() => {
@@ -119,6 +161,15 @@ export function RestaurantForm() {
               rating: r.googleRating ?? null,
               count: r.googleRatingCount ?? null,
               placeId: r.googlePlaceId ?? null,
+              type: r.googleType ?? null,
+              phone: r.googlePhone ?? null,
+              phoneIntl: r.googlePhoneIntl ?? null,
+              website: r.googleWebsite ?? null,
+              mapsUri: r.googleMapsUri ?? null,
+              priceLevel: r.googlePriceLevel ?? null,
+              hours: r.googleHours ?? null,
+              summary: r.googleSummary ?? null,
+              reviews: r.googleReviews ?? null,
             })
           }
         }
@@ -186,6 +237,15 @@ export function RestaurantForm() {
         googleRating: google?.rating ?? null,
         googleRatingCount: google?.count ?? null,
         googlePlaceId: google?.placeId ?? null,
+        googleType: google?.type ?? null,
+        googlePhone: google?.phone ?? null,
+        googlePhoneIntl: google?.phoneIntl ?? null,
+        googleWebsite: google?.website ?? null,
+        googleMapsUri: google?.mapsUri ?? null,
+        googlePriceLevel: google?.priceLevel ?? null,
+        googleHours: google?.hours ?? null,
+        googleSummary: google?.summary ?? null,
+        googleReviews: google?.reviews ?? null,
         photos,
         menuPhotos,
         dishes: cleanDishes,
@@ -255,20 +315,41 @@ export function RestaurantForm() {
           </div>
         )}
 
-        {google?.rating != null && (
-          <div className="card" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span style={{ fontSize: 22 }}>⭐</span>
-            <div className="meta">
-              <div className="name">Nota de Google: {google.rating.toFixed(1)}/5</div>
-              {google.count != null && <div className="sub">{google.count} reseñas</div>}
+        {(google || placeDetailsBusy) && (
+          <div className="card">
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+              <span style={{ fontSize: 20 }}>🟢</span>
+              <div style={{ fontWeight: 700, flex: 1 }}>Datos de Google</div>
+              {google && (
+                <button
+                  className="btn ghost small"
+                  onClick={() => setGoogle(null)}
+                  style={{ color: '#d23a3a' }}
+                >
+                  Quitar
+                </button>
+              )}
             </div>
-            <button
-              className="btn ghost small"
-              onClick={() => setGoogle(null)}
-              style={{ color: '#d23a3a' }}
-            >
-              Quitar
-            </button>
+            {placeDetailsBusy && <p className="hint" style={{ margin: 0 }}>Cargando teléfono, reseñas y horario…</p>}
+            {google && (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                {google.rating != null && (
+                  <span className="chip">
+                    ⭐ {google.rating.toFixed(1)}
+                    {google.count != null ? ` (${google.count})` : ''}
+                  </span>
+                )}
+                {google.type && <span className="chip">🍴 {google.type}</span>}
+                {google.priceLevel != null && (
+                  <span className="chip">{google.priceLevel === 0 ? 'Gratis' : '$'.repeat(google.priceLevel)}</span>
+                )}
+                {google.phone && <span className="chip">📞 {google.phone}</span>}
+                {google.website && <span className="chip">🌐 Web</span>}
+                {google.hours && <span className="chip">🕒 Horario</span>}
+                {google.reviews && <span className="chip">💬 {google.reviews.length} reseñas</span>}
+              </div>
+            )}
+            {google?.summary && <p className="hint" style={{ marginBottom: 0 }}>{google.summary}</p>}
           </div>
         )}
 

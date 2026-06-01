@@ -107,6 +107,11 @@ Para que al buscar un lugar se precargue la **nota de Google**:
 
 Si la dejas vacía, la búsqueda usa **OpenStreetMap** (gratis, pero sin nota de Google).
 
+> 💰 Al **elegir** un lugar se piden datos extra (teléfono, reseñas, horario, web).
+> Esos campos se facturan en un tramo algo mayor, pero los detalles se piden **una
+> sola vez por lugar** (al seleccionarlo), así que para uso personal sigues dentro
+> del tier gratis. El **tope de cuota** y la **alerta de presupuesto** te protegen igual.
+
 ## 📲 Publicar sin terminal (recomendado, desde el celular)
 
 ¿No quieres usar la terminal? Sigue la guía **[PUBLICAR.md](./PUBLICAR.md)**: la app

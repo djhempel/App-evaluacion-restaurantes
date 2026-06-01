@@ -56,6 +56,10 @@ export function RestaurantDetail() {
               ⭐ {r.googleRating.toFixed(1)} Google
             </span>
           )}
+          {r.googleType && !r.cuisine && <span className="chip">🍴 {r.googleType}</span>}
+          {r.googlePriceLevel != null && (
+            <span className="chip">{r.googlePriceLevel === 0 ? 'Gratis' : '$'.repeat(r.googlePriceLevel)}</span>
+          )}
         </div>
 
         {r.address && <p className="muted" style={{ marginTop: 0 }}>📍 {r.address}</p>}
@@ -79,6 +83,67 @@ export function RestaurantDetail() {
           <div style={{ marginTop: 16 }}>
             <MiniMap lat={r.lat} lng={r.lng} />
           </div>
+        )}
+
+        {(r.googlePhone || r.googleWebsite || r.googleMapsUri || r.googleHours) && (
+          <>
+            <div className="section-title">Información (Google)</div>
+            <div className="card">
+              <div className="row" style={{ flexWrap: 'wrap', gap: 8 }}>
+                {r.googlePhone && (
+                  <a className="btn secondary small" href={`tel:${r.googlePhone}`}>📞 Llamar</a>
+                )}
+                {(r.googlePhoneIntl || r.googlePhone) && (
+                  <a
+                    className="btn secondary small"
+                    href={`https://wa.me/${(r.googlePhoneIntl || r.googlePhone || '').replace(/[^\d]/g, '')}`}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    💬 WhatsApp
+                  </a>
+                )}
+                {r.googleWebsite && (
+                  <a className="btn secondary small" href={r.googleWebsite} target="_blank" rel="noreferrer">🌐 Sitio web</a>
+                )}
+                {r.googleMapsUri && (
+                  <a className="btn secondary small" href={r.googleMapsUri} target="_blank" rel="noreferrer">📍 Ver en Google</a>
+                )}
+              </div>
+              {r.googlePhone && <p className="hint" style={{ marginBottom: 0 }}>📞 {r.googlePhone}</p>}
+              {r.googleHours && r.googleHours.length > 0 && (
+                <details style={{ marginTop: 8 }}>
+                  <summary style={{ cursor: 'pointer', fontWeight: 600 }}>🕒 Horario de atención</summary>
+                  <div style={{ marginTop: 6 }}>
+                    {r.googleHours.map((h, idx) => (
+                      <div className="sub" key={idx}>{h}</div>
+                    ))}
+                  </div>
+                </details>
+              )}
+            </div>
+          </>
+        )}
+
+        {r.googleReviews && r.googleReviews.length > 0 && (
+          <>
+            <div className="section-title">Reseñas de Google</div>
+            <div className="card">
+              {r.googleReviews.map((rev, idx) => (
+                <div
+                  key={idx}
+                  style={{ paddingBottom: 10, marginBottom: 10, borderBottom: idx < r.googleReviews!.length - 1 ? '1px solid var(--line)' : 'none' }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+                    <div style={{ fontWeight: 600 }}>{rev.author ?? 'Anónimo'}</div>
+                    {rev.rating != null && <div style={{ whiteSpace: 'nowrap' }}>{'⭐'.repeat(Math.round(rev.rating))}</div>}
+                  </div>
+                  {rev.time && <div className="sub" style={{ marginBottom: 4 }}>{rev.time}</div>}
+                  {rev.text && <div className="sub">{rev.text}</div>}
+                </div>
+              ))}
+            </div>
+          </>
         )}
 
         {(r.menuPhotos?.length > 0 || r.menuUrl) && (

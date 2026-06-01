@@ -26,6 +26,15 @@ export interface Dish {
   category?: string
 }
 
+/** Una reseña traída de Google Places. */
+export interface GoogleReview {
+  author?: string
+  rating?: number
+  text?: string
+  /** Texto relativo de Google, ej. "hace 2 meses". */
+  time?: string
+}
+
 export interface Restaurant {
   id: string
   name: string
@@ -47,6 +56,23 @@ export interface Restaurant {
   googleRatingCount?: number | null
   /** ID del lugar en Google (para futuras consultas). */
   googlePlaceId?: string | null
+  /** Tipo de lugar según Google (ej. "Restaurante peruano"). */
+  googleType?: string | null
+  /** Teléfono (formato local) y versión internacional (para WhatsApp). */
+  googlePhone?: string | null
+  googlePhoneIntl?: string | null
+  /** Sitio web oficial del restaurante. */
+  googleWebsite?: string | null
+  /** Enlace directo a la ficha en Google Maps. */
+  googleMapsUri?: string | null
+  /** Nivel de precio de Google (0–4). */
+  googlePriceLevel?: number | null
+  /** Horario por día (texto ya formateado por Google). */
+  googleHours?: string[] | null
+  /** Resumen editorial de Google, si existe. */
+  googleSummary?: string | null
+  /** Reseñas destacadas de Google. */
+  googleReviews?: GoogleReview[] | null
   createdBy: string
   createdByName?: string
   createdAt?: Timestamp
