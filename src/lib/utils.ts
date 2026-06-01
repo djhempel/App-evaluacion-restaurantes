@@ -56,10 +56,52 @@ export interface PlaceResult {
   address: string
   lat: number
   lng: number
+  /** Nota de Google (0–5), solo si vino de Google Places. */
+  rating?: number | null
+  /** Nº de reseñas en Google. */
+  userRatingCount?: number | null
+  /** ID del lugar en Google. */
+  placeId?: string | null
 }
 
-/** Busca lugares por texto (OpenStreetMap / Nominatim). Para autocompletar. */
-export async function searchPlaces(query: string): Promise<PlaceResult[]> {
+const GOOGLE_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string | undefined
+
+/** Busca lugares con Google Places (incluye la nota de Google). */
+async function googleSearchPlaces(query: string): Promise<PlaceResult[]> {
+  const res = await fetch('https://places.googleapis.com/v1/places:searchText', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Goog-Api-Key': GOOGLE_KEY as string,
+      'X-Goog-FieldMask':
+        'places.id,places.displayName,places.formattedAddress,places.location,places.rating,places.userRatingCount',
+    },
+    body: JSON.stringify({ textQuery: query, languageCode: 'es', regionCode: 'CL' }),
+  })
+  if (!res.ok) throw new Error('google-failed')
+  const data = (await res.json()) as {
+    places?: Array<{
+      id: string
+      displayName?: { text?: string }
+      formattedAddress?: string
+      location?: { latitude: number; longitude: number }
+      rating?: number
+      userRatingCount?: number
+    }>
+  }
+  return (data.places ?? []).map((p) => ({
+    name: p.displayName?.text ?? p.formattedAddress ?? '',
+    address: p.formattedAddress ?? '',
+    lat: p.location?.latitude ?? 0,
+    lng: p.location?.longitude ?? 0,
+    rating: p.rating ?? null,
+    userRatingCount: p.userRatingCount ?? null,
+    placeId: p.id ?? null,
+  }))
+}
+
+/** Búsqueda con OpenStreetMap / Nominatim (sin nota; respaldo gratuito). */
+async function osmSearchPlaces(query: string): Promise<PlaceResult[]> {
   const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&q=${encodeURIComponent(
     query,
   )}&limit=6&addressdetails=1&namedetails=1&accept-language=es`
@@ -78,6 +120,24 @@ export async function searchPlaces(query: string): Promise<PlaceResult[]> {
     lat: Number(d.lat),
     lng: Number(d.lon),
   }))
+}
+
+/** ¿Está configurada la búsqueda de Google? */
+export const hasGooglePlaces = Boolean(GOOGLE_KEY)
+
+/**
+ * Busca lugares para autocompletar. Usa Google Places (con nota de Google) si
+ * hay API key configurada; si no, o si Google falla, cae a OpenStreetMap.
+ */
+export async function searchPlaces(query: string): Promise<PlaceResult[]> {
+  if (GOOGLE_KEY) {
+    try {
+      return await googleSearchPlaces(query)
+    } catch {
+      /* si Google falla (cuota, red…), usamos OSM */
+    }
+  }
+  return osmSearchPlaces(query)
 }
 
 /** Normaliza texto para comparar (minúsculas, sin acentos). */

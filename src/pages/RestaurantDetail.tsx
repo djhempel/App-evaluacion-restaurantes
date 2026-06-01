@@ -51,6 +51,11 @@ export function RestaurantDetail() {
           {r.cuisine && <span className="chip">🍴 {r.cuisine}</span>}
           {evals.length > 0 && <ScoreBadge score={avg} showLabel />}
           <span className="chip">{evals.length} evaluaciones</span>
+          {r.googleRating != null && (
+            <span className="chip" title={r.googleRatingCount ? `${r.googleRatingCount} reseñas en Google` : 'Nota de Google'}>
+              ⭐ {r.googleRating.toFixed(1)} Google
+            </span>
+          )}
         </div>
 
         {r.address && <p className="muted" style={{ marginTop: 0 }}>📍 {r.address}</p>}

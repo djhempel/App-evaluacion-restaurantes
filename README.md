@@ -80,6 +80,28 @@ verás una pantalla explicando qué falta.
    firebase deploy --only firestore:rules,firestore:indexes,storage
    ```
 
+## ⭐ (Opcional) Nota de Google con tope de cuota (sin riesgo de cobro)
+
+Para que al buscar un lugar se precargue la **nota de Google**:
+
+1. En <https://console.cloud.google.com> elige el **mismo proyecto** de Firebase.
+2. **APIs y servicios → Biblioteca** → activa **Places API (New)**.
+3. **Credenciales → Crear credencial → Clave de API**. En la clave:
+   - **Restricción de aplicación:** *Sitios web (HTTP referrer)* → agrega tu dominio
+     (ej. `https://tu-proyecto.web.app/*`).
+   - **Restricción de API:** marca solo *Places API (New)*.
+4. **Tope de cuota a prueba de cobros:** *APIs y servicios → Places API (New) →
+   Cuotas* → baja el límite de *Requests per day* a un número bajo (ej. **100/día**).
+   Si se superara, la búsqueda simplemente deja de responder ese día — **nunca cobra**.
+   (Conviene también crear una *alerta de presupuesto* en *Facturación*.)
+5. Pon la clave en tu `.env` y como **Secret de GitHub** (`VITE_GOOGLE_MAPS_API_KEY`):
+
+   ```env
+   VITE_GOOGLE_MAPS_API_KEY=...
+   ```
+
+Si la dejas vacía, la búsqueda usa **OpenStreetMap** (gratis, pero sin nota de Google).
+
 ## 📲 Publicar sin terminal (recomendado, desde el celular)
 
 ¿No quieres usar la terminal? Sigue la guía **[PUBLICAR.md](./PUBLICAR.md)**: la app

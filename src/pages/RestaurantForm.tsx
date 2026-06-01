@@ -9,6 +9,7 @@ import { createRestaurant, getRestaurant, listRestaurants, updateRestaurant } fr
 import { uploadImage } from '../lib/storage'
 import {
   getCurrentPosition,
+  hasGooglePlaces,
   normalizeText,
   reverseGeocode,
   searchPlaces,
@@ -29,6 +30,11 @@ export function RestaurantForm() {
   const [cuisine, setCuisine] = useState('')
   const [address, setAddress] = useState('')
   const [loc, setLoc] = useState<{ lat: number; lng: number } | null>(null)
+  const [google, setGoogle] = useState<{
+    rating: number | null
+    count: number | null
+    placeId: string | null
+  } | null>(null)
   const [photos, setPhotos] = useState<string[]>([])
   const [menuPhotos, setMenuPhotos] = useState<string[]>([])
   const [menuUrl, setMenuUrl] = useState('')
@@ -87,9 +93,12 @@ export function RestaurantForm() {
     if (!name.trim()) setName(p.name)
     setAddress(p.address)
     setLoc({ lat: p.lat, lng: p.lng })
+    if (p.rating != null || p.placeId) {
+      setGoogle({ rating: p.rating ?? null, count: p.userRatingCount ?? null, placeId: p.placeId ?? null })
+    }
     setPlaceResults([])
     setPlaceQuery('')
-    toast('Datos del lugar cargados 📍')
+    toast(p.rating != null ? `Datos cargados · Google ${p.rating}★` : 'Datos del lugar cargados 📍')
   }
 
   useEffect(() => {
@@ -105,6 +114,13 @@ export function RestaurantForm() {
           setMenuPhotos(r.menuPhotos ?? [])
           setMenuUrl(r.menuUrl ?? '')
           setDishes(r.dishes ?? [])
+          if (r.googleRating != null || r.googlePlaceId) {
+            setGoogle({
+              rating: r.googleRating ?? null,
+              count: r.googleRatingCount ?? null,
+              placeId: r.googlePlaceId ?? null,
+            })
+          }
         }
         setLoading(false)
       })
@@ -167,6 +183,9 @@ export function RestaurantForm() {
         menuUrl: menuUrl.trim(),
         lat: loc?.lat ?? null,
         lng: loc?.lng ?? null,
+        googleRating: google?.rating ?? null,
+        googleRatingCount: google?.count ?? null,
+        googlePlaceId: google?.placeId ?? null,
         photos,
         menuPhotos,
         dishes: cleanDishes,
@@ -206,7 +225,11 @@ export function RestaurantForm() {
                 placeholder="Escribe el nombre o dirección…"
                 autoComplete="off"
               />
-              <p className="hint">Busca en OpenStreetMap y precarga dirección y ubicación.</p>
+              <p className="hint">
+                {hasGooglePlaces
+                  ? 'Busca en Google y precarga nombre, dirección, ubicación y la nota de Google.'
+                  : 'Busca en OpenStreetMap y precarga dirección y ubicación.'}
+              </p>
             </label>
             {placeSearching && <p className="hint">Buscando…</p>}
             {placeResults.map((p, i) => (
@@ -222,8 +245,30 @@ export function RestaurantForm() {
                   <div className="name">{p.name}</div>
                   <div className="sub">{p.address}</div>
                 </div>
+                {p.rating != null && (
+                  <span className="sub" style={{ whiteSpace: 'nowrap' }}>
+                    {p.rating.toFixed(1)} ⭐
+                  </span>
+                )}
               </button>
             ))}
+          </div>
+        )}
+
+        {google?.rating != null && (
+          <div className="card" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ fontSize: 22 }}>⭐</span>
+            <div className="meta">
+              <div className="name">Nota de Google: {google.rating.toFixed(1)}/5</div>
+              {google.count != null && <div className="sub">{google.count} reseñas</div>}
+            </div>
+            <button
+              className="btn ghost small"
+              onClick={() => setGoogle(null)}
+              style={{ color: '#d23a3a' }}
+            >
+              Quitar
+            </button>
           </div>
         )}
 

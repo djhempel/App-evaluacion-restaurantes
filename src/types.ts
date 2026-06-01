@@ -42,6 +42,11 @@ export interface Restaurant {
   menuUrl?: string
   /** Carta de platos para evaluar. */
   dishes: Dish[]
+  /** Nota de Google (0–5) y nº de reseñas, si se cargó desde Google Places. */
+  googleRating?: number | null
+  googleRatingCount?: number | null
+  /** ID del lugar en Google (para futuras consultas). */
+  googlePlaceId?: string | null
   createdBy: string
   createdByName?: string
   createdAt?: Timestamp
