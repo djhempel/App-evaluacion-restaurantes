@@ -4,6 +4,7 @@ const NAV = [
   { to: '/', icon: '🏠', label: 'Inicio', end: true },
   { to: '/restaurantes', icon: '🍴', label: 'Lugares', end: false },
   { to: '/explorar', icon: '📍', label: 'Cerca', end: false },
+  { to: '/wishlist', icon: '📌', label: 'Lista', end: false },
   { to: '/mapa', icon: '🗺️', label: 'Mapa', end: false },
   { to: '/perfil', icon: '👤', label: 'Perfil', end: false },
 ]

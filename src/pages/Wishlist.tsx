@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { useToast } from '../components/Toast'
-import { SubHeader } from '../components/Layout'
 import { Spinner } from '../components/Spinner'
 import { addWishlist, deleteWishlist, listWishlist, updateWishlist } from '../lib/data'
+import { hasGooglePlaces, searchPlaces, type PlaceResult } from '../lib/utils'
 import type { WishlistItem } from '../types'
 
 export function Wishlist() {
@@ -12,6 +12,12 @@ export function Wishlist() {
   const [items, setItems] = useState<WishlistItem[] | null>(null)
   const [name, setName] = useState('')
   const [note, setNote] = useState('')
+  const [address, setAddress] = useState('')
+
+  // Buscador de lugares (Google si hay key, si no OpenStreetMap).
+  const [placeQuery, setPlaceQuery] = useState('')
+  const [placeResults, setPlaceResults] = useState<PlaceResult[]>([])
+  const [placeSearching, setPlaceSearching] = useState(false)
 
   useEffect(() => {
     if (!user) return
@@ -20,21 +26,45 @@ export function Wishlist() {
       .catch(() => setItems([]))
   }, [user])
 
+  useEffect(() => {
+    const q = placeQuery.trim()
+    if (q.length < 4) {
+      setPlaceResults([])
+      return
+    }
+    setPlaceSearching(true)
+    const t = setTimeout(() => {
+      searchPlaces(q)
+        .then(setPlaceResults)
+        .catch(() => setPlaceResults([]))
+        .finally(() => setPlaceSearching(false))
+    }, 600)
+    return () => clearTimeout(t)
+  }, [placeQuery])
+
+  function selectPlace(p: PlaceResult) {
+    setName(p.name)
+    setAddress(p.address)
+    if (p.rating != null && !note.trim()) setNote(`Google ${p.rating.toFixed(1)} ⭐`)
+    setPlaceResults([])
+    setPlaceQuery('')
+  }
+
   async function add() {
     if (!user || !name.trim()) return
-    const id = await addWishlist({
+    const payload = {
       userId: user.uid,
       name: name.trim(),
       note: note.trim(),
+      address: address.trim(),
       done: false,
       restaurantId: null,
-    })
-    setItems((prev) => [
-      { id, userId: user.uid, name: name.trim(), note: note.trim(), done: false, restaurantId: null },
-      ...(prev ?? []),
-    ])
+    }
+    const id = await addWishlist(payload)
+    setItems((prev) => [{ id, ...payload }, ...(prev ?? [])])
     setName('')
     setNote('')
+    setAddress('')
     toast('Agregado a tu lista 📌')
   }
 
@@ -52,13 +82,52 @@ export function Wishlist() {
 
   return (
     <>
-      <SubHeader title="Por visitar 📌" />
+      <header className="app-header">
+        <h1>Por visitar 📌</h1>
+      </header>
       <div className="app-main">
         <div className="card">
+          <label className="field" style={{ marginBottom: placeResults.length || placeSearching ? 10 : 12 }}>
+            <span>🔎 Buscar el lugar</span>
+            <input
+              value={placeQuery}
+              onChange={(e) => setPlaceQuery(e.target.value)}
+              placeholder="Escribe el nombre del restaurante…"
+              autoComplete="off"
+            />
+            <p className="hint">
+              {hasGooglePlaces
+                ? 'Busca en Google y precarga nombre y dirección.'
+                : 'Busca en OpenStreetMap y precarga nombre y dirección.'}
+            </p>
+          </label>
+          {placeSearching && <p className="hint">Buscando…</p>}
+          {placeResults.map((p, i) => (
+            <button
+              key={i}
+              type="button"
+              className="list-item"
+              onClick={() => selectPlace(p)}
+              style={{ width: '100%', background: 'none', border: 'none', textAlign: 'left', cursor: 'pointer' }}
+            >
+              <span style={{ fontSize: 20 }}>📍</span>
+              <div className="meta">
+                <div className="name">{p.name}</div>
+                <div className="sub">{p.address}</div>
+              </div>
+              {p.rating != null && (
+                <span className="sub" style={{ whiteSpace: 'nowrap' }}>{p.rating.toFixed(1)} ⭐</span>
+              )}
+            </button>
+          ))}
+
           <label className="field">
             <span>Restaurante por visitar</span>
             <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nombre del lugar" />
           </label>
+          {address && (
+            <p className="hint" style={{ marginTop: -4 }}>📍 {address}</p>
+          )}
           <label className="field">
             <span>Nota (opcional)</span>
             <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Me lo recomendó…" />
@@ -87,6 +156,7 @@ export function Wishlist() {
                   <div className="name" style={{ textDecoration: i.done ? 'line-through' : 'none', opacity: i.done ? 0.5 : 1 }}>
                     {i.name}
                   </div>
+                  {i.address && <div className="sub">📍 {i.address}</div>}
                   {i.note && <div className="sub">{i.note}</div>}
                 </div>
                 <button className="btn ghost" onClick={() => remove(i)} style={{ color: '#d23a3a' }}>
