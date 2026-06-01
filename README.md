@@ -112,6 +112,32 @@ Si la dejas vacía, la búsqueda usa **OpenStreetMap** (gratis, pero sin nota de
 > sola vez por lugar** (al seleccionarlo), así que para uso personal sigues dentro
 > del tier gratis. El **tope de cuota** y la **alerta de presupuesto** te protegen igual.
 
+## 🧠 (Opcional) Carta inteligente con Gemini (Cloud Function)
+
+Convierte una **foto, las fotos del menú o un link** de la carta en platos
+seleccionables. Vive en una Cloud Function (`functions/`, función `parseMenu`)
+que llama a **Gemini Flash** de forma segura (la API key nunca llega al navegador).
+Requiere plan **Blaze** (el mismo que ya usas).
+
+1. **Crea una API key de Gemini** (gratis) en <https://aistudio.google.com/apikey>.
+2. **Sin computador → usa Cloud Shell** (terminal en el navegador):
+   abre <https://shell.cloud.google.com>, elige tu proyecto y ejecuta:
+
+   ```bash
+   git clone https://github.com/djhempel/app-evaluacion-restaurantes.git
+   cd app-evaluacion-restaurantes
+   npx firebase-tools@13 functions:secrets:set GEMINI_API_KEY   # pega tu key
+   npx firebase-tools@13 deploy --only functions --project TU_PROJECT_ID
+   ```
+
+   El primer deploy habilita solas las APIs necesarias (Cloud Functions, Cloud
+   Build, Artifact Registry) y puede tardar un par de minutos.
+3. Listo: en **Nuevo restaurante → ✨ Leer carta automáticamente** ya funciona.
+
+> 💰 Gemini Flash tiene un **tier gratis generoso** (cientos de cartas/mes). Cada
+> lectura es 1 llamada. La función corre en `us-central1` (igual que el cliente).
+> Si cambias de región, ajusta `getFunctions(app, 'us-central1')` en `src/firebase.ts`.
+
 ## 📲 Publicar sin terminal (recomendado, desde el celular)
 
 ¿No quieres usar la terminal? Sigue la guía **[PUBLICAR.md](./PUBLICAR.md)**: la app

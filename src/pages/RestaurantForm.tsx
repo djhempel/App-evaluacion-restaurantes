@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type ChangeEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { useToast } from '../components/Toast'
@@ -18,6 +18,7 @@ import {
 } from '../lib/utils'
 import type { GoogleReview } from '../types'
 import { DISH_CATEGORIES } from '../config/dishes'
+import { parseMenuFromFile, parseMenuFromLink, parseMenuFromUrls, type ParsedDish } from '../lib/menu'
 import type { Dish, Restaurant } from '../types'
 
 interface GoogleInfo {
@@ -53,6 +54,7 @@ export function RestaurantForm() {
   const [menuUrl, setMenuUrl] = useState('')
   const [dishes, setDishes] = useState<Dish[]>([])
   const [saving, setSaving] = useState(false)
+  const [parsing, setParsing] = useState(false)
   const [locBusy, setLocBusy] = useState(false)
   const [allRestaurants, setAllRestaurants] = useState<Restaurant[]>([])
 
@@ -189,6 +191,40 @@ export function RestaurantForm() {
   }
   function removeDish(dishId: string) {
     setDishes((d) => d.filter((x) => x.id !== dishId))
+  }
+
+  // Lee la carta con IA (foto/fotos/link) y agrega los platos detectados.
+  async function runParseMenu(run: () => Promise<ParsedDish[]>) {
+    if (parsing) return
+    setParsing(true)
+    try {
+      const parsed = await run()
+      if (parsed.length === 0) {
+        toast('No se encontraron platos en la carta')
+        return
+      }
+      setDishes((d) => [
+        ...d,
+        ...parsed.map((p) => ({
+          id: crypto.randomUUID(),
+          name: p.name,
+          price: p.price,
+          category: p.category,
+        })),
+      ])
+      toast(`✨ ${parsed.length} platos agregados`)
+    } catch (e) {
+      console.error(e)
+      toast((e as Error)?.message || 'No se pudo leer la carta')
+    } finally {
+      setParsing(false)
+    }
+  }
+
+  async function onParseFile(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (file) await runParseMenu(() => parseMenuFromFile(file))
   }
 
   async function captureLocation() {
@@ -442,6 +478,45 @@ export function RestaurantForm() {
             placeholder="https://… (si el local tiene menú online)"
           />
         </label>
+
+        <div className="section-title">✨ Leer carta automáticamente</div>
+        <div className="card">
+          <p className="hint" style={{ marginTop: 0 }}>
+            Sube una foto de la carta, o úsala desde las fotos del menú / el link de arriba, y la
+            convertimos en platos seleccionables. Puedes corregirlos antes de guardar.
+          </p>
+          <label className="btn secondary block" style={{ cursor: parsing ? 'default' : 'pointer', opacity: parsing ? 0.6 : 1 }}>
+            📷 Leer carta desde una foto
+            <input
+              type="file"
+              accept="image/*"
+              onChange={onParseFile}
+              disabled={parsing}
+              style={{ display: 'none' }}
+            />
+          </label>
+          {menuPhotos.length > 0 && (
+            <button
+              className="btn secondary block"
+              style={{ marginTop: 8 }}
+              disabled={parsing}
+              onClick={() => runParseMenu(() => parseMenuFromUrls(menuPhotos))}
+            >
+              🍽️ Leer de las {menuPhotos.length} foto{menuPhotos.length > 1 ? 's' : ''} del menú
+            </button>
+          )}
+          {menuUrl.trim() && (
+            <button
+              className="btn secondary block"
+              style={{ marginTop: 8 }}
+              disabled={parsing}
+              onClick={() => runParseMenu(() => parseMenuFromLink(menuUrl.trim()))}
+            >
+              🔗 Leer del link de la carta
+            </button>
+          )}
+          {parsing && <p className="hint" style={{ marginBottom: 0 }}>Leyendo la carta… (puede tardar unos segundos)</p>}
+        </div>
 
         <div className="section-title">Platos de la carta</div>
         <div className="card">

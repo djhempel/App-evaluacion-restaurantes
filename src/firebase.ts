@@ -1,6 +1,7 @@
 import { initializeApp, type FirebaseApp } from 'firebase/app'
 import { getAuth, GoogleAuthProvider, type Auth } from 'firebase/auth'
 import { getFirestore, type Firestore } from 'firebase/firestore'
+import { getFunctions, type Functions } from 'firebase/functions'
 import { getStorage, type FirebaseStorage } from 'firebase/storage'
 
 // Limpia espacios, saltos de línea, comillas o signos < > que se cuelen al
@@ -29,15 +30,18 @@ let app: FirebaseApp | undefined
 let authInstance: Auth | undefined
 let dbInstance: Firestore | undefined
 let storageInstance: FirebaseStorage | undefined
+let functionsInstance: Functions | undefined
 
 if (isFirebaseConfigured) {
   app = initializeApp(firebaseConfig)
   authInstance = getAuth(app)
   dbInstance = getFirestore(app)
   storageInstance = getStorage(app)
+  functionsInstance = getFunctions(app, 'us-central1')
 }
 
 export const auth = authInstance as Auth
 export const db = dbInstance as Firestore
 export const storage = storageInstance as FirebaseStorage
+export const functions = functionsInstance as Functions
 export const googleProvider = new GoogleAuthProvider()
