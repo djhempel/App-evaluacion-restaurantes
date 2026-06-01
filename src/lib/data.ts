@@ -1,10 +1,12 @@
 import {
   addDoc,
+  arrayUnion,
   collection,
   deleteDoc,
   doc,
   getDoc,
   getDocs,
+  limit,
   orderBy,
   query,
   serverTimestamp,
@@ -14,7 +16,7 @@ import {
   type QueryDocumentSnapshot,
 } from 'firebase/firestore'
 import { db } from '../firebase'
-import type { Evaluation, Restaurant, WishlistItem } from '../types'
+import type { Evaluation, Group, GroupMember, Restaurant, WishlistItem } from '../types'
 
 function mapDoc<T>(snap: QueryDocumentSnapshot<DocumentData>): T {
   return { id: snap.id, ...snap.data() } as T
@@ -151,4 +153,60 @@ export async function updateWishlist(
 
 export async function deleteWishlist(id: string): Promise<void> {
   await deleteDoc(doc(db, 'wishlist', id))
+}
+
+/* -------------------------------- Grupos -------------------------------- */
+
+function makeInviteCode(): string {
+  return Math.random().toString(36).slice(2, 8) + Math.random().toString(36).slice(2, 6)
+}
+
+export async function createGroup(
+  name: string,
+  member: GroupMember,
+): Promise<string> {
+  const ref = await addDoc(collection(db, 'groups'), {
+    name: name.trim(),
+    ownerId: member.uid,
+    ownerName: member.name,
+    memberUids: [member.uid],
+    members: [member],
+    inviteCode: makeInviteCode(),
+    createdAt: serverTimestamp(),
+  })
+  return ref.id
+}
+
+export async function listMyGroups(uid: string): Promise<Group[]> {
+  const q = query(collection(db, 'groups'), where('memberUids', 'array-contains', uid))
+  const snap = await getDocs(q)
+  return snap.docs.map((d) => mapDoc<Group>(d))
+}
+
+export async function getGroup(id: string): Promise<Group | null> {
+  try {
+    const snap = await getDoc(doc(db, 'groups', id))
+    return snap.exists() ? ({ id: snap.id, ...snap.data() } as Group) : null
+  } catch {
+    return null
+  }
+}
+
+export async function getGroupByCode(code: string): Promise<Group | null> {
+  const q = query(collection(db, 'groups'), where('inviteCode', '==', code), limit(1))
+  const snap = await getDocs(q)
+  return snap.empty ? null : mapDoc<Group>(snap.docs[0])
+}
+
+export async function joinGroup(groupId: string, member: GroupMember): Promise<void> {
+  await updateDoc(doc(db, 'groups', groupId), {
+    memberUids: arrayUnion(member.uid),
+    members: arrayUnion(member),
+  })
+}
+
+export async function listEvaluationsByGroup(groupId: string): Promise<Evaluation[]> {
+  const q = query(collection(db, 'evaluations'), where('groupId', '==', groupId))
+  const snap = await getDocs(q)
+  return byNewest(snap.docs.map((d) => mapDoc<Evaluation>(d)))
 }

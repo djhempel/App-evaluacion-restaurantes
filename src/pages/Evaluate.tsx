@@ -11,6 +11,7 @@ import {
   createEvaluation,
   getEvaluation,
   getRestaurant,
+  listMyGroups,
   listRestaurants,
   updateEvaluation,
 } from '../lib/data'
@@ -22,7 +23,7 @@ import {
   ratedCount,
 } from '../config/scoring'
 import { getCurrentPosition } from '../lib/utils'
-import type { DishEntries, RatedDish, Restaurant, Scores } from '../types'
+import type { DishEntries, Group, RatedDish, Restaurant, Scores, Visibility } from '../types'
 
 const FOOD_KEYS = FOOD_CRITERIA.map((c) => c.key)
 
@@ -56,7 +57,9 @@ export function Evaluate() {
   const [photos, setPhotos] = useState<string[]>([])
   const [comment, setComment] = useState('')
   const [price, setPrice] = useState('')
-  const [isPublic, setIsPublic] = useState(false)
+  const [visibility, setVisibility] = useState<Visibility>('private')
+  const [groupId, setGroupId] = useState('')
+  const [myGroups, setMyGroups] = useState<Group[]>([])
   const [loc, setLoc] = useState<{ lat: number; lng: number } | null>(null)
   const [locBusy, setLocBusy] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -66,6 +69,11 @@ export function Evaluate() {
       .then(setRestaurants)
       .catch(() => setRestaurants([]))
   }, [])
+
+  useEffect(() => {
+    if (!user) return
+    listMyGroups(user.uid).then(setMyGroups).catch(() => setMyGroups([]))
+  }, [user])
 
   useEffect(() => {
     if (!restaurantId) {
@@ -112,7 +120,8 @@ export function Evaluate() {
       setPhotos(e.photos ?? [])
       setComment(e.comment ?? '')
       setPrice(e.pricePerPerson != null ? String(e.pricePerPerson) : '')
-      setIsPublic(e.isPublic)
+      setVisibility(e.visibility ?? (e.isPublic ? 'public' : 'private'))
+      setGroupId(e.groupId ?? '')
       if (e.lat != null && e.lng != null) setLoc({ lat: e.lat, lng: e.lng })
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -152,6 +161,10 @@ export function Evaluate() {
       toast('Agrega al menos un plato o una nota')
       return
     }
+    if (visibility === 'group' && !groupId) {
+      toast('Elige un grupo o cambia la visibilidad')
+      return
+    }
     setSaving(true)
     try {
       // Limpia: deja solo platos con nombre.
@@ -176,6 +189,15 @@ export function Evaluate() {
         null
       const dishCount = FOOD_KEYS.reduce((n, k) => n + (cleanEntries[k]?.length ?? 0), 0)
 
+      // Visibilidad → quién puede leerla.
+      const group = visibility === 'group' ? myGroups.find((g) => g.id === groupId) : undefined
+      const allowedUids =
+        visibility === 'group' && group
+          ? group.memberUids
+          : visibility === 'private'
+            ? [user.uid]
+            : []
+
       const data = {
         userId: user.uid,
         userName: user.displayName ?? 'Anónimo',
@@ -194,7 +216,10 @@ export function Evaluate() {
         lat: loc?.lat ?? restaurant.lat ?? null,
         lng: loc?.lng ?? restaurant.lng ?? null,
         address: restaurant.address ?? '',
-        isPublic,
+        isPublic: visibility === 'public',
+        visibility,
+        groupId: visibility === 'group' ? groupId || null : null,
+        allowedUids,
       }
       if (editId) {
         await updateEvaluation(editId, data)
@@ -353,18 +378,35 @@ export function Evaluate() {
             </div>
 
             <label className="field" style={{ marginTop: 12 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <input
-                  type="checkbox"
-                  checked={isPublic}
-                  onChange={(e) => setIsPublic(e.target.checked)}
-                  style={{ width: 'auto' }}
-                />
-                <span style={{ fontWeight: 600 }}>
-                  Hacer pública (compartible por link sin login)
-                </span>
-              </div>
+              <span>¿Quién puede verla?</span>
+              <select value={visibility} onChange={(e) => setVisibility(e.target.value as Visibility)}>
+                <option value="private">🔒 Privada (solo yo)</option>
+                <option value="group">👥 Grupo (solo los miembros)</option>
+                <option value="public">🌐 Pública (cualquiera con el link)</option>
+              </select>
             </label>
+
+            {visibility === 'group' && (
+              <label className="field">
+                <span>Grupo</span>
+                {myGroups.length === 0 ? (
+                  <div className="hint">
+                    No tienes grupos.{' '}
+                    <a onClick={() => navigate('/grupos')} style={{ cursor: 'pointer' }}>
+                      Crea uno aquí
+                    </a>
+                    .
+                  </div>
+                ) : (
+                  <select value={groupId} onChange={(e) => setGroupId(e.target.value)}>
+                    <option value="">Elige un grupo…</option>
+                    {myGroups.map((g) => (
+                      <option key={g.id} value={g.id}>{g.name}</option>
+                    ))}
+                  </select>
+                )}
+              </label>
+            )}
 
             <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}>
               <ScoreBadge score={finalScore} showLabel />

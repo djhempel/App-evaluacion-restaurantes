@@ -18,6 +18,9 @@ import { MapView } from './pages/MapView'
 import { Wishlist } from './pages/Wishlist'
 import { Stats } from './pages/Stats'
 import { Profile } from './pages/Profile'
+import { Groups } from './pages/Groups'
+import { GroupDetail } from './pages/GroupDetail'
+import { JoinGroup } from './pages/JoinGroup'
 import type { ReactNode } from 'react'
 
 function Protected({ children }: { children: ReactNode }) {
@@ -38,6 +41,14 @@ export default function App() {
         {/* Públicas */}
         <Route path="/login" element={<Login />} />
         <Route path="/e/:id" element={<PublicEvaluation />} />
+        <Route
+          path="/grupos/unirse/:code"
+          element={
+            <Protected>
+              <JoinGroup />
+            </Protected>
+          }
+        />
 
         {/* Privadas con navegación */}
         <Route
@@ -55,6 +66,8 @@ export default function App() {
           <Route path="/perfil" element={<Profile />} />
           <Route path="/wishlist" element={<Wishlist />} />
           <Route path="/estadisticas" element={<Stats />} />
+          <Route path="/grupos" element={<Groups />} />
+          <Route path="/grupos/:id" element={<GroupDetail />} />
         </Route>
 
         {/* Privadas sin barra inferior (pantallas de detalle/formularios) */}

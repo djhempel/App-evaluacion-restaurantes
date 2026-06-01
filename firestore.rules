@@ -20,13 +20,26 @@ service cloud.firestore {
       allow delete: if signedIn() && resource.data.createdBy == request.auth.uid;
     }
 
-    // Evaluaciones: las públicas las puede leer cualquiera (incluso sin login,
-    // para los links que se comparten). Las privadas, solo su dueño.
+    // Evaluaciones: públicas (cualquiera, incluso sin login, para los links),
+    // del dueño, o de un grupo (uid dentro de allowedUids).
     match /evaluations/{id} {
       allow read: if resource.data.isPublic == true
-        || (signedIn() && resource.data.userId == request.auth.uid);
+        || (signedIn() && resource.data.userId == request.auth.uid)
+        || (signedIn() && resource.data.allowedUids != null
+            && request.auth.uid in resource.data.allowedUids);
       allow create: if signedIn() && request.resource.data.userId == request.auth.uid;
       allow update, delete: if signedIn() && resource.data.userId == request.auth.uid;
+    }
+
+    // Grupos: los miembros pueden leer/editar; cualquiera logueado puede unirse
+    // (agregándose a sí mismo a memberUids con el link de invitación).
+    match /groups/{id} {
+      allow read: if signedIn();
+      allow create: if signedIn() && request.resource.data.ownerId == request.auth.uid;
+      allow update: if signedIn()
+        && (resource.data.ownerId == request.auth.uid
+            || request.auth.uid in request.resource.data.memberUids);
+      allow delete: if signedIn() && resource.data.ownerId == request.auth.uid;
     }
 
     // Wishlist: privada por usuario.

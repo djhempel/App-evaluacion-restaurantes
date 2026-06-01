@@ -35,8 +35,8 @@ export function EvaluationDetail() {
   async function share() {
     if (!e) return
     if (!e.isPublic) {
-      await updateEvaluation(e.id, { isPublic: true })
-      setE({ ...e, isPublic: true })
+      await updateEvaluation(e.id, { isPublic: true, visibility: 'public', groupId: null, allowedUids: [] })
+      setE({ ...e, isPublic: true, visibility: 'public' })
     }
     if (navigator.share) {
       try {
@@ -56,9 +56,15 @@ export function EvaluationDetail() {
 
   async function togglePublic() {
     if (!e) return
-    await updateEvaluation(e.id, { isPublic: !e.isPublic })
-    setE({ ...e, isPublic: !e.isPublic })
-    toast(e.isPublic ? 'Ahora es privada' : 'Ahora es pública')
+    const makePublic = !e.isPublic
+    await updateEvaluation(e.id, {
+      isPublic: makePublic,
+      visibility: makePublic ? 'public' : 'private',
+      groupId: null,
+      allowedUids: makePublic ? [] : [e.userId],
+    })
+    setE({ ...e, isPublic: makePublic, visibility: makePublic ? 'public' : 'private' })
+    toast(makePublic ? 'Ahora es pública' : 'Ahora es privada')
   }
 
   async function remove() {

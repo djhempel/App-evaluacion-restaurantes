@@ -94,6 +94,12 @@ export interface Evaluation {
   address?: string
   /** Si es público, cualquiera con el link puede verla sin login. */
   isPublic: boolean
+  /** Nivel de visibilidad: privada, de grupo o pública. */
+  visibility?: Visibility
+  /** Grupo con el que se comparte (cuando visibility === 'group'). */
+  groupId?: string | null
+  /** UIDs que pueden leerla (denormalizado para las reglas y consultas). */
+  allowedUids?: string[]
   createdAt?: Timestamp
   visitedAt?: string
 }
@@ -109,3 +115,23 @@ export interface WishlistItem {
   done: boolean
   createdAt?: Timestamp
 }
+
+export interface GroupMember {
+  uid: string
+  name: string
+  photo?: string
+}
+
+export interface Group {
+  id: string
+  name: string
+  ownerId: string
+  ownerName?: string
+  memberUids: string[]
+  members: GroupMember[]
+  inviteCode: string
+  createdAt?: Timestamp
+}
+
+/** Quién puede ver una evaluación. */
+export type Visibility = 'private' | 'group' | 'public'
