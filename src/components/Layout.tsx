@@ -3,9 +3,9 @@ import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 const NAV = [
   { to: '/', icon: '🏠', label: 'Inicio', end: true },
   { to: '/restaurantes', icon: '🍴', label: 'Lugares', end: false },
-  { to: '/explorar', icon: '📍', label: 'Cerca', end: false },
+  { to: '/explorar', icon: '🧭', label: 'Explorar', end: false },
   { to: '/wishlist', icon: '📌', label: 'Lista', end: false },
-  { to: '/mapa', icon: '🗺️', label: 'Mapa', end: false },
+  { to: '/grupos', icon: '👥', label: 'Grupos', end: false },
   { to: '/perfil', icon: '👤', label: 'Perfil', end: false },
 ]
 

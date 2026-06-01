@@ -14,7 +14,6 @@ import { EvaluationDetail } from './pages/EvaluationDetail'
 import { PublicEvaluation } from './pages/PublicEvaluation'
 import { Ranking } from './pages/Ranking'
 import { Explore } from './pages/Explore'
-import { MapView } from './pages/MapView'
 import { Wishlist } from './pages/Wishlist'
 import { Stats } from './pages/Stats'
 import { Profile } from './pages/Profile'
@@ -62,7 +61,7 @@ export default function App() {
           <Route path="/restaurantes" element={<RestaurantList />} />
           <Route path="/explorar" element={<Explore />} />
           <Route path="/ranking" element={<Ranking />} />
-          <Route path="/mapa" element={<MapView />} />
+          <Route path="/mapa" element={<Navigate to="/explorar" replace />} />
           <Route path="/perfil" element={<Profile />} />
           <Route path="/wishlist" element={<Wishlist />} />
           <Route path="/estadisticas" element={<Stats />} />

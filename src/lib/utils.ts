@@ -263,6 +263,75 @@ export async function searchNearbyPlaces(
 }
 /* eslint-enable @typescript-eslint/no-explicit-any */
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/**
+ * Descubre restaurantes cerca de un punto. Si se pasa `cuisineText`, busca por
+ * texto (ej. "carne", "japonés") sesgado a la zona; si no, lugares cercanos.
+ * Siempre filtra por distancia al radio indicado.
+ */
+export async function discoverPlaces(
+  lat: number,
+  lng: number,
+  radius = 3000,
+  cuisineText?: string,
+): Promise<PlaceResult[]> {
+  if (!GOOGLE_KEY) return []
+  await loadMaps()
+  const g = (window as any).google
+  const placesLib = g.maps.importLibrary
+    ? await g.maps.importLibrary('places')
+    : g.maps.places
+  const { Place, SearchNearbyRankPreference } = placesLib
+  const fields = [
+    'displayName',
+    'formattedAddress',
+    'location',
+    'rating',
+    'userRatingCount',
+    'id',
+    'primaryTypeDisplayName',
+  ]
+  const toResult = (p: any): PlaceResult => ({
+    name: p.displayName ?? '',
+    address: p.formattedAddress ?? '',
+    lat: typeof p.location?.lat === 'function' ? p.location.lat() : 0,
+    lng: typeof p.location?.lng === 'function' ? p.location.lng() : 0,
+    rating: p.rating ?? null,
+    userRatingCount: p.userRatingCount ?? null,
+    placeId: p.id ?? null,
+    type: p.primaryTypeDisplayName ?? null,
+  })
+
+  let raw: any[] = []
+  if (cuisineText) {
+    const { places } = await Place.searchByText({
+      textQuery: `restaurantes de ${cuisineText}`,
+      fields,
+      locationBias: { center: { lat, lng }, radius },
+      maxResultCount: 20,
+      language: 'es',
+      region: 'cl',
+    })
+    raw = places ?? []
+  } else {
+    const { places } = await Place.searchNearby({
+      fields,
+      locationRestriction: { center: { lat, lng }, radius },
+      includedPrimaryTypes: ['restaurant'],
+      maxResultCount: 20,
+      rankPreference: SearchNearbyRankPreference.POPULARITY,
+      language: 'es',
+      region: 'cl',
+    })
+    raw = places ?? []
+  }
+  const km = radius / 1000
+  return raw
+    .map(toResult)
+    .filter((p) => distanceKm({ lat, lng }, { lat: p.lat, lng: p.lng }) <= km)
+}
+/* eslint-enable @typescript-eslint/no-explicit-any */
+
 /** ¿Está configurada la búsqueda de Google? */
 export const hasGooglePlaces = Boolean(GOOGLE_KEY)
 

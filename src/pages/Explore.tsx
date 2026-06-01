@@ -1,186 +1,288 @@
-import { useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
-import { listPublicEvaluations, listRestaurants } from '../lib/data'
-import type { Evaluation, Restaurant } from '../types'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { useAuth } from '../contexts/AuthContext'
+import { useToast } from '../components/Toast'
+import { addWishlist, listPublicEvaluations, listRestaurants } from '../lib/data'
+import {
+  discoverPlaces,
+  distanceKm,
+  getCurrentPosition,
+  hasGooglePlaces,
+  searchPlaces,
+  type PlaceResult,
+} from '../lib/utils'
+import { CUISINES, cuisineLabel } from '../config/cuisines'
+import type { Restaurant } from '../types'
 import { Spinner } from '../components/Spinner'
-import { ScoreBadge } from '../components/ScoreBadge'
-import { MIN_SCORE } from '../config/scoring'
-import { distanceKm, getCurrentPosition } from '../lib/utils'
+import { MarkersMap, type MapMarker } from '../components/MarkersMap'
 
-interface Row {
-  restaurant: Restaurant
-  avg: number
-  count: number
-  dist?: number
-}
+const RADII = [1, 2, 5, 10]
+const MIN_RATINGS = [
+  { v: 0, label: 'Cualquiera' },
+  { v: 3.5, label: '3.5+' },
+  { v: 4.0, label: '4.0+' },
+  { v: 4.5, label: '4.5+' },
+]
+const GREEN = '#1f9d55'
+const ORANGE = '#e8730c'
 
 export function Explore() {
-  const [restaurants, setRestaurants] = useState<Restaurant[] | null>(null)
-  const [evals, setEvals] = useState<Evaluation[]>([])
-  const [loc, setLoc] = useState<{ lat: number; lng: number } | null>(null)
-  const [locBusy, setLocBusy] = useState(false)
+  const { user } = useAuth()
+  const toast = useToast()
+  const navigate = useNavigate()
 
+  const [restaurants, setRestaurants] = useState<Restaurant[]>([])
+  const [appAvg, setAppAvg] = useState<Map<string, number>>(new Map())
+  const [wishlistIds, setWishlistIds] = useState<Set<string>>(new Set())
+
+  const [center, setCenter] = useState<{ lat: number; lng: number } | null>(null)
+  const [centerLabel, setCenterLabel] = useState('')
+  const [radiusKm, setRadiusKm] = useState(3)
   const [cuisine, setCuisine] = useState('')
-  const [minScore, setMinScore] = useState(MIN_SCORE)
-  const [maxDist, setMaxDist] = useState(25)
+  const [minRating, setMinRating] = useState(0)
+  const [view, setView] = useState<'list' | 'map'>('list')
+
+  const [results, setResults] = useState<PlaceResult[] | null>(null)
+  const [busy, setBusy] = useState(false)
+
+  // Búsqueda de dirección (geocode reutilizando searchPlaces).
+  const [addr, setAddr] = useState('')
+  const [addrResults, setAddrResults] = useState<PlaceResult[]>([])
+  const reqId = useRef(0)
 
   useEffect(() => {
     Promise.all([listRestaurants(), listPublicEvaluations()])
       .then(([rs, ev]) => {
         setRestaurants(rs)
-        setEvals(ev)
+        const agg = new Map<string, { sum: number; n: number }>()
+        for (const e of ev) {
+          const cur = agg.get(e.restaurantId) ?? { sum: 0, n: 0 }
+          cur.sum += e.finalScore
+          cur.n += 1
+          agg.set(e.restaurantId, cur)
+        }
+        setAppAvg(new Map([...agg].map(([id, { sum, n }]) => [id, sum / n])))
       })
-      .catch(() => {
-        setRestaurants([])
-        setEvals([])
-      })
+      .catch(() => undefined)
   }, [])
 
+  // Ubicación inicial.
+  useEffect(() => {
+    getCurrentPosition()
+      .then((pos) => {
+        setCenter(pos)
+        setCenterLabel('Mi ubicación')
+      })
+      .catch(() => undefined)
+  }, [])
+
+  // Buscador de dirección.
+  useEffect(() => {
+    const q = addr.trim()
+    if (q.length < 4) {
+      setAddrResults([])
+      return
+    }
+    const t = setTimeout(() => {
+      searchPlaces(q).then(setAddrResults).catch(() => setAddrResults([]))
+    }, 600)
+    return () => clearTimeout(t)
+  }, [addr])
+
+  // Descubre cuando cambian centro / radio / tipo.
+  useEffect(() => {
+    if (!center || !hasGooglePlaces) return
+    const myReq = ++reqId.current
+    setBusy(true)
+    discoverPlaces(center.lat, center.lng, radiusKm * 1000, cuisine ? cuisineLabel(cuisine) : undefined)
+      .then((r) => {
+        if (myReq === reqId.current) setResults(r)
+      })
+      .catch(() => {
+        if (myReq === reqId.current) setResults([])
+      })
+      .finally(() => {
+        if (myReq === reqId.current) setBusy(false)
+      })
+  }, [center, radiusKm, cuisine])
+
   async function useMyLocation() {
-    setLocBusy(true)
     try {
-      setLoc(await getCurrentPosition())
+      const pos = await getCurrentPosition()
+      setCenter(pos)
+      setCenterLabel('Mi ubicación')
     } catch {
-      /* nada */
-    } finally {
-      setLocBusy(false)
+      toast('No se pudo obtener tu ubicación')
     }
   }
 
-  const cuisines = useMemo(() => {
-    const set = new Set((restaurants ?? []).map((r) => (r.cuisine ?? '').trim()).filter(Boolean))
-    return Array.from(set).sort()
-  }, [restaurants])
+  function pickAddress(p: PlaceResult) {
+    setCenter({ lat: p.lat, lng: p.lng })
+    setCenterLabel(p.name)
+    setAddr('')
+    setAddrResults([])
+  }
 
-  const rows = useMemo<Row[]>(() => {
-    if (!restaurants) return []
-    // Promedio y conteo por restaurante (solo evaluaciones públicas).
-    const agg = new Map<string, { sum: number; count: number }>()
-    for (const e of evals) {
-      const cur = agg.get(e.restaurantId) ?? { sum: 0, count: 0 }
-      cur.sum += e.finalScore
-      cur.count += 1
-      agg.set(e.restaurantId, cur)
+  async function addToWishlist(p: PlaceResult) {
+    if (!user) return
+    const payload = {
+      userId: user.uid,
+      name: p.name,
+      address: p.address ?? '',
+      note: p.rating != null ? `Google ${p.rating.toFixed(1)} ⭐` : '',
+      cuisine: cuisine || '',
+      lat: p.lat ?? null,
+      lng: p.lng ?? null,
+      googlePlaceId: p.placeId ?? null,
+      googleRating: p.rating ?? null,
+      done: false,
+      restaurantId: null,
     }
-    let list: Row[] = restaurants
-      .map((r) => {
-        const a = agg.get(r.id)
-        const dist =
-          loc && r.lat != null && r.lng != null
-            ? distanceKm(loc, { lat: r.lat, lng: r.lng })
-            : undefined
-        return {
-          restaurant: r,
-          avg: a ? a.sum / a.count : 0,
-          count: a ? a.count : 0,
-          dist,
-        }
-      })
-      // Solo lugares con al menos una evaluación pública.
-      .filter((row) => row.count > 0)
+    await addWishlist(payload)
+    if (p.placeId) setWishlistIds((s) => new Set(s).add(p.placeId as string))
+    toast('Agregado a tu lista 📌')
+  }
 
-    if (cuisine) list = list.filter((row) => (row.restaurant.cuisine ?? '') === cuisine)
-    list = list.filter((row) => row.avg >= minScore)
-    if (loc) list = list.filter((row) => row.dist == null || row.dist <= maxDist)
+  const registeredByPlaceId = useMemo(
+    () => new Map(restaurants.filter((r) => r.googlePlaceId).map((r) => [r.googlePlaceId as string, r])),
+    [restaurants],
+  )
 
-    // Ordena: si hay ubicación, por cercanía; si no, por nota.
-    list.sort((a, b) => {
-      if (loc && a.dist != null && b.dist != null) return a.dist - b.dist
-      return b.avg - a.avg
-    })
-    return list
-  }, [restaurants, evals, cuisine, minScore, maxDist, loc])
+  const filtered = useMemo(
+    () => (results ?? []).filter((p) => (p.rating ?? 0) >= minRating),
+    [results, minRating],
+  )
 
-  if (restaurants === null) return <Spinner label="Buscando lugares…" />
+  const markers: MapMarker[] = useMemo(() => {
+    const m: MapMarker[] = []
+    for (const p of filtered) {
+      if (p.lat && p.lng) {
+        const reg = p.placeId ? registeredByPlaceId.get(p.placeId) : undefined
+        m.push({
+          id: `g-${p.placeId}`,
+          lat: p.lat,
+          lng: p.lng,
+          title: p.name,
+          subtitle: [p.rating != null ? `⭐ ${p.rating.toFixed(1)}` : null, p.type].filter(Boolean).join(' · '),
+          color: reg ? GREEN : ORANGE,
+          to: reg ? `/restaurantes/${reg.id}` : undefined,
+        })
+      }
+    }
+    return m
+  }, [filtered, registeredByPlaceId])
 
   return (
     <>
       <header className="app-header">
-        <h1>Populares cerca 📍</h1>
+        <h1>Explorar 🧭</h1>
       </header>
       <div className="app-main">
+        {/* Ubicación */}
         <div className="card">
-          <button
-            className="btn secondary block"
-            onClick={useMyLocation}
-            disabled={locBusy}
-            style={{ marginBottom: 12 }}
-          >
-            {locBusy ? 'Ubicando…' : loc ? '📍 Ubicación activada · actualizar' : '📍 Usar mi ubicación'}
-          </button>
-
-          <label className="field" style={{ marginBottom: 12 }}>
-            <span>Tipo de comida</span>
-            <select value={cuisine} onChange={(e) => setCuisine(e.target.value)}>
-              <option value="">Todas</option>
-              {cuisines.map((c) => (
-                <option key={c} value={c}>{c}</option>
-              ))}
-            </select>
-          </label>
-
-          <label className="field" style={{ marginBottom: 12 }}>
-            <span>Nota mínima: {minScore.toFixed(1)}</span>
+          <label className="field" style={{ marginBottom: addrResults.length ? 8 : 8 }}>
+            <span>📍 Ubicación</span>
             <input
-              type="range"
-              min={MIN_SCORE}
-              max={7}
-              step={0.5}
-              value={minScore}
-              onChange={(e) => setMinScore(Number(e.target.value))}
+              value={addr}
+              onChange={(e) => setAddr(e.target.value)}
+              placeholder={centerLabel ? `Centro: ${centerLabel}` : 'Escribe una dirección o lugar (ej. tu hotel)…'}
+              autoComplete="off"
             />
           </label>
-
-          {loc && (
-            <label className="field" style={{ marginBottom: 0 }}>
-              <span>Distancia máxima: {maxDist} km</span>
-              <input
-                type="range"
-                min={1}
-                max={50}
-                step={1}
-                value={maxDist}
-                onChange={(e) => setMaxDist(Number(e.target.value))}
-              />
-            </label>
-          )}
-          {!loc && (
-            <p className="hint" style={{ margin: 0 }}>
-              Activa tu ubicación para filtrar por distancia y ordenar por cercanía.
-            </p>
-          )}
+          {addrResults.map((p, i) => (
+            <button
+              key={i}
+              type="button"
+              className="list-item"
+              onClick={() => pickAddress(p)}
+              style={{ width: '100%', background: 'none', border: 'none', textAlign: 'left', cursor: 'pointer' }}
+            >
+              <span style={{ fontSize: 18 }}>📍</span>
+              <div className="meta"><div className="name">{p.name}</div><div className="sub">{p.address}</div></div>
+            </button>
+          ))}
+          <button className="btn secondary small" onClick={useMyLocation}>📡 Usar mi ubicación</button>
         </div>
 
-        {rows.length === 0 ? (
-          <div className="empty">
-            <div className="big">🔍</div>
-            <p>No hay lugares que cumplan con esos filtros.</p>
+        {/* Filtros */}
+        <div className="card">
+          <span className="hint" style={{ marginTop: 0 }}>Radio</span>
+          <div className="row" style={{ gap: 6, marginBottom: 10 }}>
+            {RADII.map((r) => (
+              <button key={r} className={`btn small ${radiusKm === r ? '' : 'secondary'}`} style={{ flex: 1 }} onClick={() => setRadiusKm(r)}>
+                {r} km
+              </button>
+            ))}
           </div>
+          <div className="row" style={{ gap: 8 }}>
+            <select value={cuisine} onChange={(e) => setCuisine(e.target.value)} style={{ flex: 2 }}>
+              <option value="">Cualquier tipo</option>
+              {CUISINES.map((c) => (
+                <option key={c.value} value={c.value}>{c.emoji} {c.label}</option>
+              ))}
+            </select>
+            <select value={minRating} onChange={(e) => setMinRating(Number(e.target.value))} style={{ flex: 1 }}>
+              {MIN_RATINGS.map((m) => (
+                <option key={m.v} value={m.v}>{m.label}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {/* Vista */}
+        <div className="row" style={{ gap: 8, marginBottom: 12 }}>
+          <button className={`btn small ${view === 'list' ? '' : 'secondary'}`} style={{ flex: 1 }} onClick={() => setView('list')}>📋 Lista</button>
+          <button className={`btn small ${view === 'map' ? '' : 'secondary'}`} style={{ flex: 1 }} onClick={() => setView('map')}>🗺️ Mapa</button>
+        </div>
+
+        {!hasGooglePlaces ? (
+          <div className="empty"><div className="big">🧭</div><p>Configura la API key de Google para explorar lugares cercanos.</p></div>
+        ) : !center ? (
+          <div className="empty"><div className="big">📍</div><p>Activa tu ubicación o escribe una dirección para empezar.</p></div>
+        ) : busy && results === null ? (
+          <Spinner label="Buscando cerca…" />
+        ) : view === 'map' ? (
+          markers.length === 0 ? (
+            <div className="empty"><div className="big">🗺️</div><p>Sin resultados con esos filtros.</p></div>
+          ) : (
+            <MarkersMap markers={markers} height="58vh" />
+          )
+        ) : filtered.length === 0 ? (
+          <div className="empty"><div className="big">🔍</div><p>{busy ? 'Buscando…' : 'Sin resultados con esos filtros. Sube el radio o baja la nota mínima.'}</p></div>
         ) : (
           <div className="card">
-            {rows.map((row) => (
-              <Link
-                key={row.restaurant.id}
-                to={`/restaurantes/${row.restaurant.id}`}
-                className="list-item"
-                style={{ color: 'inherit' }}
-              >
-                {row.restaurant.photos?.[0] ? (
-                  <img src={row.restaurant.photos[0]} alt="" className="thumb" />
-                ) : (
-                  <div className="thumb" style={{ display: 'grid', placeItems: 'center', fontSize: 24 }}>🍴</div>
-                )}
-                <div className="meta">
-                  <div className="name">{row.restaurant.name}</div>
-                  <div className="sub">
-                    {row.restaurant.cuisine ? `${row.restaurant.cuisine} · ` : ''}
-                    {row.count} {row.count === 1 ? 'opinión' : 'opiniones'}
-                    {row.dist != null ? ` · ${row.dist.toFixed(1)} km` : ''}
+            {filtered.map((p, i) => {
+              const reg = p.placeId ? registeredByPlaceId.get(p.placeId) : undefined
+              const inList = p.placeId ? wishlistIds.has(p.placeId) : false
+              const dist = center ? distanceKm(center, { lat: p.lat, lng: p.lng }) : null
+              const myScore = reg ? appAvg.get(reg.id) : undefined
+              return (
+                <div className="list-item" key={p.placeId ?? i}>
+                  <div className="thumb" style={{ display: 'grid', placeItems: 'center', fontSize: 22 }}>{reg ? '✅' : '📍'}</div>
+                  <div className="meta">
+                    <div className="name">{p.name}</div>
+                    <div className="sub">
+                      {p.rating != null ? `⭐ ${p.rating.toFixed(1)} Google` : 'sin nota'}
+                      {myScore != null ? ` · ${myScore.toFixed(1)} app` : ''}
+                      {p.type ? ` · ${p.type}` : ''}
+                      {dist != null ? ` · ${dist.toFixed(1)} km` : ''}
+                    </div>
+                    <div style={{ marginTop: 6, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                      {reg ? (
+                        <button className="btn small" onClick={() => navigate(`/restaurantes/${reg.id}`)}>Ver ficha ›</button>
+                      ) : (
+                        <>
+                          <button className="btn small secondary" disabled={inList} onClick={() => addToWishlist(p)}>
+                            {inList ? '📌 En tu lista' : '📌 Wishlist'}
+                          </button>
+                          <button className="btn small" onClick={() => navigate('/restaurantes/nuevo', { state: { place: p } })}>+ Registrar</button>
+                        </>
+                      )}
+                    </div>
                   </div>
                 </div>
-                <ScoreBadge score={row.avg} />
-              </Link>
-            ))}
+              )
+            })}
           </div>
         )}
       </div>
