@@ -26,8 +26,21 @@ export function Login() {
 
   return (
     <div className="center-screen">
-      <div style={{ fontSize: 64 }}>🍽️</div>
-      <h1 style={{ fontSize: 28 }}>Mis Restaurantes</h1>
+      <div
+        style={{
+          fontSize: 52,
+          width: 104,
+          height: 104,
+          display: 'grid',
+          placeItems: 'center',
+          borderRadius: 30,
+          background: 'linear-gradient(145deg, #fff, #ffe9d4)',
+          boxShadow: '0 18px 40px -12px rgba(232,93,4,.45), inset 0 0 0 1px rgba(255,255,255,.6)',
+        }}
+      >
+        🍽️
+      </div>
+      <h1 style={{ fontSize: 30 }}>Mis Restaurantes</h1>
       <p className="muted" style={{ maxWidth: 320 }}>
         Evalúa cada restaurante plato por plato y guarda tu historial con fotos,
         ubicación y una nota final ponderada.
