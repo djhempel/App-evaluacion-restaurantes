@@ -158,19 +158,26 @@ export function Explore() {
     for (const p of filtered) {
       if (p.lat && p.lng) {
         const reg = p.placeId ? registeredByPlaceId.get(p.placeId) : undefined
+        const dist = center ? distanceKm(center, { lat: p.lat, lng: p.lng }) : null
         m.push({
           id: `g-${p.placeId}`,
           lat: p.lat,
           lng: p.lng,
           title: p.name,
-          subtitle: [p.rating != null ? `⭐ ${p.rating.toFixed(1)}` : null, p.type].filter(Boolean).join(' · '),
+          subtitle: [
+            p.rating != null ? `⭐ ${p.rating.toFixed(1)}` : null,
+            p.type,
+            dist != null ? `📍 a ${dist.toFixed(1)} km` : null,
+          ]
+            .filter(Boolean)
+            .join(' · '),
           color: reg ? GREEN : ORANGE,
           to: reg ? `/restaurantes/${reg.id}` : undefined,
         })
       }
     }
     return m
-  }, [filtered, registeredByPlaceId])
+  }, [filtered, registeredByPlaceId, center])
 
   return (
     <>
@@ -206,26 +213,34 @@ export function Explore() {
 
         {/* Filtros */}
         <div className="card">
-          <span className="hint" style={{ marginTop: 0 }}>Radio</span>
-          <div className="row" style={{ gap: 6, marginBottom: 10 }}>
-            {RADII.map((r) => (
-              <button key={r} className={`btn small ${radiusKm === r ? '' : 'secondary'}`} style={{ flex: 1 }} onClick={() => setRadiusKm(r)}>
-                {r} km
-              </button>
-            ))}
-          </div>
+          <label className="field" style={{ marginBottom: 12 }}>
+            <span>Radio de búsqueda</span>
+            <div className="row" style={{ gap: 6 }}>
+              {RADII.map((r) => (
+                <button key={r} className={`btn small ${radiusKm === r ? '' : 'secondary'}`} style={{ flex: 1 }} onClick={() => setRadiusKm(r)}>
+                  {r} km
+                </button>
+              ))}
+            </div>
+          </label>
           <div className="row" style={{ gap: 8 }}>
-            <select value={cuisine} onChange={(e) => setCuisine(e.target.value)} style={{ flex: 2 }}>
-              <option value="">Cualquier tipo</option>
-              {CUISINES.map((c) => (
-                <option key={c.value} value={c.value}>{c.emoji} {c.label}</option>
-              ))}
-            </select>
-            <select value={minRating} onChange={(e) => setMinRating(Number(e.target.value))} style={{ flex: 1 }}>
-              {MIN_RATINGS.map((m) => (
-                <option key={m.v} value={m.v}>{m.label}</option>
-              ))}
-            </select>
+            <label className="field" style={{ flex: 2, marginBottom: 0 }}>
+              <span>Tipo de comida</span>
+              <select value={cuisine} onChange={(e) => setCuisine(e.target.value)}>
+                <option value="">Cualquier tipo</option>
+                {CUISINES.map((c) => (
+                  <option key={c.value} value={c.value}>{c.emoji} {c.label}</option>
+                ))}
+              </select>
+            </label>
+            <label className="field" style={{ flex: 1, marginBottom: 0 }}>
+              <span>Nota mínima</span>
+              <select value={minRating} onChange={(e) => setMinRating(Number(e.target.value))}>
+                {MIN_RATINGS.map((m) => (
+                  <option key={m.v} value={m.v}>{m.label}</option>
+                ))}
+              </select>
+            </label>
           </div>
         </div>
 
@@ -245,7 +260,19 @@ export function Explore() {
           markers.length === 0 ? (
             <div className="empty"><div className="big">🗺️</div><p>Sin resultados con esos filtros.</p></div>
           ) : (
-            <MarkersMap markers={markers} height="58vh" />
+            <>
+              <MarkersMap
+                markers={markers}
+                height="58vh"
+                origin={center ? { lat: center.lat, lng: center.lng, label: centerLabel || 'Tu ubicación' } : undefined}
+                radiusMeters={radiusKm * 1000}
+              />
+              <div className="map-legend">
+                <span><i className="dot" style={{ background: '#2b6cb0' }} /> {centerLabel || 'Tu ubicación'}</span>
+                <span><i className="dot" style={{ background: GREEN }} /> Registrados</span>
+                <span><i className="dot" style={{ background: ORANGE }} /> Sugeridos</span>
+              </div>
+            </>
           )
         ) : filtered.length === 0 ? (
           <div className="empty"><div className="big">🔍</div><p>{busy ? 'Buscando…' : 'Sin resultados con esos filtros. Sube el radio o baja la nota mínima.'}</p></div>
