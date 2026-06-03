@@ -22,6 +22,7 @@ import { Groups } from './pages/Groups'
 import { GroupDetail } from './pages/GroupDetail'
 import { JoinGroup } from './pages/JoinGroup'
 import { Friends } from './pages/Friends'
+import { PublicProfile } from './pages/PublicProfile'
 import type { ReactNode } from 'react'
 
 function Protected({ children }: { children: ReactNode }) {
@@ -119,6 +120,14 @@ export default function App() {
           element={
             <Protected>
               <RestaurantDetail />
+            </Protected>
+          }
+        />
+        <Route
+          path="/u/:uid"
+          element={
+            <Protected>
+              <PublicProfile />
             </Protected>
           }
         />

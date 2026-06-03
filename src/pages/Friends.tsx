@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { useToast } from '../components/Toast'
 import { SubHeader } from '../components/Layout'
@@ -26,6 +27,7 @@ function Avatar({ url, size = 44 }: { url?: string; size?: number }) {
 export function Friends() {
   const { user } = useAuth()
   const toast = useToast()
+  const navigate = useNavigate()
   const me: UserProfile | null = user
     ? { uid: user.uid, displayName: user.displayName ?? 'Anónimo', email: user.email ?? '', photoURL: user.photoURL ?? '' }
     : null
@@ -147,8 +149,10 @@ export function Friends() {
             const sent = outgoingUids.has(u.uid)
             return (
               <div className="list-item" key={u.uid}>
-                <Avatar url={u.photoURL} />
-                <div className="meta"><div className="name">{u.displayName}</div>{u.email && <div className="sub">{u.email}</div>}</div>
+                <div onClick={() => navigate(`/u/${u.uid}`)} style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1, minWidth: 0, cursor: 'pointer' }}>
+                  <Avatar url={u.photoURL} />
+                  <div className="meta"><div className="name">{u.displayName}</div>{u.email && <div className="sub">{u.email}</div>}</div>
+                </div>
                 {isFriend ? (
                   <span className="chip">✓ Amigo</span>
                 ) : sent ? (
@@ -174,8 +178,10 @@ export function Friends() {
               const other = f.users.find((u) => u.uid !== user!.uid) ?? f.users[0]
               return (
                 <div className="list-item" key={f.id}>
-                  <Avatar url={other?.photoURL} />
-                  <div className="meta"><div className="name">{other?.displayName ?? 'Amigo'}</div></div>
+                  <div onClick={() => other && navigate(`/u/${other.uid}`)} style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1, minWidth: 0, cursor: 'pointer' }}>
+                    <Avatar url={other?.photoURL} />
+                    <div className="meta"><div className="name">{other?.displayName ?? 'Amigo'}</div></div>
+                  </div>
                   <button className="btn ghost small" onClick={() => unfriend(f)} style={{ color: '#d23a3a' }}>Quitar</button>
                 </div>
               )

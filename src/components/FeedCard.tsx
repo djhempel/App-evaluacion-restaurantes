@@ -1,4 +1,5 @@
-import { Link } from 'react-router-dom'
+import type { MouseEvent } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import { FOOD_CRITERIA, scoreColor } from '../config/scoring'
 import type { Evaluation } from '../types'
 import { formatDate } from '../lib/utils'
@@ -27,18 +28,28 @@ function topDishes(e: Evaluation, n = 3) {
 export function FeedCard({ e, showAuthor }: { e: Evaluation; showAuthor: boolean }) {
   const hero = heroPhoto(e)
   const dishes = topDishes(e)
+  const navigate = useNavigate()
+
+  function goAuthor(ev: MouseEvent) {
+    if (!showAuthor) return
+    ev.preventDefault()
+    ev.stopPropagation()
+    navigate(`/u/${e.userId}`)
+  }
 
   return (
     <Link to={`/evaluacion/${e.id}`} className="feed-card">
       <div className="feed-head">
-        {showAuthor && e.userPhoto ? (
-          <img src={e.userPhoto} alt="" className="feed-avatar" referrerPolicy="no-referrer" />
-        ) : (
-          <div className="feed-avatar placeholder">{showAuthor ? '👤' : '🕶️'}</div>
-        )}
-        <div className="meta">
-          <div className="name">{showAuthor ? e.userName : 'Anónimo'}</div>
-          <div className="sub">{e.restaurantName} · {formatDate(e.createdAt)}</div>
+        <div onClick={goAuthor} style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 0, cursor: showAuthor ? 'pointer' : 'default' }}>
+          {showAuthor && e.userPhoto ? (
+            <img src={e.userPhoto} alt="" className="feed-avatar" referrerPolicy="no-referrer" />
+          ) : (
+            <div className="feed-avatar placeholder">{showAuthor ? '👤' : '🕶️'}</div>
+          )}
+          <div className="meta">
+            <div className="name">{showAuthor ? e.userName : 'Anónimo'}</div>
+            <div className="sub">{e.restaurantName} · {formatDate(e.createdAt)}</div>
+          </div>
         </div>
         <ScoreBadge score={e.finalScore} />
       </div>

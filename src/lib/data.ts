@@ -96,6 +96,23 @@ export async function listAllEvaluations(): Promise<Evaluation[]> {
   return byNewest(snap.docs.map((d) => mapDoc<Evaluation>(d)))
 }
 
+/** Evaluaciones de un usuario (para su perfil público). */
+export async function listEvaluationsByUser(userId: string): Promise<Evaluation[]> {
+  const q = query(collection(db, 'evaluations'), where('userId', '==', userId))
+  const snap = await getDocs(q)
+  return byNewest(snap.docs.map((d) => mapDoc<Evaluation>(d)))
+}
+
+/** Perfil público de un usuario. */
+export async function getUserProfile(uid: string): Promise<UserProfile | null> {
+  try {
+    const snap = await getDoc(doc(db, 'users', uid))
+    return snap.exists() ? (snap.data() as UserProfile) : null
+  } catch {
+    return null
+  }
+}
+
 export async function listEvaluationsByRestaurant(
   restaurantId: string,
 ): Promise<Evaluation[]> {

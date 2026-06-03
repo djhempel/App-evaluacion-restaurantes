@@ -24,6 +24,7 @@ export function Home() {
   const [friendUids, setFriendUids] = useState<Set<string>>(new Set())
   const [groupIds, setGroupIds] = useState<Set<string>>(new Set())
   const [scope, setScope] = useState<FeedScope>('public')
+  const [view, setView] = useState<'feed' | 'fotos'>('feed')
 
   useEffect(() => {
     if (!user) return
@@ -86,6 +87,18 @@ export function Home() {
     [scoped],
   )
 
+  // Galería de fotos de platos (del ámbito).
+  const photos = useMemo(() => {
+    const out: { photo: string; id: string }[] = []
+    for (const e of feed) {
+      const set = new Set<string>()
+      for (const p of e.photos ?? []) set.add(p)
+      for (const c of FOOD_CRITERIA) for (const d of e.dishEntries?.[c.key] ?? []) for (const p of d.photos ?? []) set.add(p)
+      for (const p of set) out.push({ photo: p, id: e.id })
+    }
+    return out.slice(0, 60)
+  }, [feed])
+
   if (evals === null) return <Spinner label="Cargando tu feed…" />
 
   const scopeLabel = scope === 'me' ? 'tuyos' : scope === 'friends' ? 'de amigos' : scope === 'group' ? 'de grupos' : 'de todos'
@@ -94,6 +107,7 @@ export function Home() {
     <>
       <header className="app-header">
         <h1>Sabores 🍽️</h1>
+        <Link to="/amigos" className="btn ghost" title="Buscar personas / amigos">🔍</Link>
         <Link to="/amigos" className="btn ghost" title="Amigos">🤝</Link>
       </header>
       <div className="app-main">
@@ -112,6 +126,26 @@ export function Home() {
           <button className={`btn small ${scope === 'me' ? '' : 'secondary'}`} style={{ flex: 1 }} onClick={() => setScope('me')}>🙋 Yo</button>
         </div>
 
+        {/* Vista: feed o fotos */}
+        <div className="row" style={{ gap: 8, marginBottom: 8 }}>
+          <button className={`btn small ${view === 'feed' ? '' : 'secondary'}`} style={{ flex: 1 }} onClick={() => setView('feed')}>📸 Feed</button>
+          <button className={`btn small ${view === 'fotos' ? '' : 'secondary'}`} style={{ flex: 1 }} onClick={() => setView('fotos')}>🖼️ Fotos</button>
+        </div>
+
+        {view === 'fotos' ? (
+          photos.length === 0 ? (
+            <div className="empty"><div className="big">🖼️</div><p>Aún no hay fotos en este ámbito.</p></div>
+          ) : (
+            <div className="grid-3">
+              {photos.map((p, i) => (
+                <Link key={i} to={`/evaluacion/${p.id}`} className="grid-cell">
+                  <img src={p.photo} alt="" />
+                </Link>
+              ))}
+            </div>
+          )
+        ) : (
+        <>
         {/* Platos top del ámbito */}
         {topDishes.length > 0 && (
           <>
@@ -155,6 +189,8 @@ export function Home() {
           feed.map((e) => (
             <FeedCard key={e.id} e={e} showAuthor={scope !== 'public' || e.userId === user?.uid} />
           ))
+        )}
+        </>
         )}
       </div>
 
