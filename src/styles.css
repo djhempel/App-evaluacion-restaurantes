@@ -962,6 +962,14 @@ input[type='range']:focus {
   box-shadow: var(--shadow);
   border: 1px solid var(--hairline);
 }
+.carousel.flush {
+  border-radius: 0;
+  border: none;
+  box-shadow: none;
+}
+.ig-carousel {
+  position: relative;
+}
 .carousel-track {
   display: flex;
   overflow-x: auto;

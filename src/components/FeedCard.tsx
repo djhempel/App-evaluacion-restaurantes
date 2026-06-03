@@ -1,28 +1,9 @@
 import { useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { FOOD_CRITERIA, scoreColor } from '../config/scoring'
+import { scoreColor } from '../config/scoring'
 import type { Evaluation } from '../types'
 import { formatDate } from '../lib/utils'
-
-function heroPhoto(e: Evaluation): string | undefined {
-  if (e.photos?.[0]) return e.photos[0]
-  for (const c of FOOD_CRITERIA) {
-    for (const d of e.dishEntries?.[c.key] ?? []) {
-      if (d.photos?.[0]) return d.photos[0]
-    }
-  }
-  return undefined
-}
-
-function topDishes(e: Evaluation, n = 3) {
-  const out: { emoji: string; name: string; score: number }[] = []
-  for (const c of FOOD_CRITERIA) {
-    for (const d of e.dishEntries?.[c.key] ?? []) {
-      out.push({ emoji: c.emoji, name: d.name || c.label, score: d.score })
-    }
-  }
-  return out.sort((a, b) => b.score - a.score).slice(0, n)
-}
+import { Carousel, buildEvalSlides } from './Carousel'
 
 export function FeedCard({
   e,
@@ -39,27 +20,22 @@ export function FeedCard({
   commentCount?: number
   onToggleLike?: (evalId: string, liked: boolean) => void
 }) {
-  const hero = heroPhoto(e)
-  const dishes = topDishes(e)
   const navigate = useNavigate()
   const lastTap = useRef(0)
-  const tapTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [pop, setPop] = useState(false)
+  const slides = buildEvalSlides(e)
 
   function openEval() {
     navigate(`/evaluacion/${e.id}`)
   }
 
-  function onMediaTap() {
+  // Doble-tap sobre la foto → like (sin interferir con el deslizar).
+  function onMediaClick() {
     const now = Date.now()
     if (now - lastTap.current < 280) {
-      // Doble tap → like
-      if (tapTimer.current) clearTimeout(tapTimer.current)
       if (!liked) onToggleLike?.(e.id, true)
       setPop(true)
       setTimeout(() => setPop(false), 800)
-    } else {
-      tapTimer.current = setTimeout(openEval, 280)
     }
     lastTap.current = now
   }
@@ -68,7 +44,7 @@ export function FeedCard({
     <article className="ig-card">
       <div className="ig-head">
         {showAuthor && e.userPhoto ? (
-          <img src={e.userPhoto} alt="" className="ig-avatar" referrerPolicy="no-referrer" onClick={() => showAuthor && navigate(`/u/${e.userId}`)} />
+          <img src={e.userPhoto} alt="" className="ig-avatar" referrerPolicy="no-referrer" onClick={() => navigate(`/u/${e.userId}`)} />
         ) : (
           <div className="ig-avatar">{showAuthor ? '👤' : '🕶️'}</div>
         )}
@@ -76,20 +52,17 @@ export function FeedCard({
           <div className="ig-name">{showAuthor ? e.userName : 'Anónimo'}</div>
           <div className="ig-place">{e.restaurantName}</div>
         </div>
+        <span className="badge" style={{ background: scoreColor(e.finalScore) }}>⭐ {e.finalScore.toFixed(1)}</span>
       </div>
 
-      {hero ? (
-        <div className="ig-media" onClick={onMediaTap}>
-          <img src={hero} alt="" />
-          <span className="ig-score">⭐ {e.finalScore.toFixed(1)}</span>
-          <div className={`ig-heart-pop ${pop ? 'show' : ''}`}>❤️</div>
-        </div>
-      ) : (
-        <div className="ig-media placeholder" onClick={onMediaTap}>
-          🍽️
-          <div className={`ig-heart-pop ${pop ? 'show' : ''}`}>❤️</div>
-        </div>
-      )}
+      <div className="ig-carousel" onClick={onMediaClick}>
+        {slides.length > 0 ? (
+          <Carousel slides={slides} flush />
+        ) : (
+          <div className="ig-media placeholder">🍽️</div>
+        )}
+        <div className={`ig-heart-pop ${pop ? 'show' : ''}`}>❤️</div>
+      </div>
 
       <div className="ig-actions">
         <button type="button" className="ig-act" onClick={() => onToggleLike?.(e.id, !liked)} aria-label="Me gusta">
@@ -99,17 +72,7 @@ export function FeedCard({
         <button type="button" className="ig-act" onClick={openEval} aria-label="Ver" style={{ marginLeft: 'auto' }}>›</button>
       </div>
 
-      {likeCount > 0 && <div className="ig-likes">{likeCount} {likeCount === 1 ? 'Me gusta' : 'Me gusta'}</div>}
-
-      {dishes.length > 0 && (
-        <div className="ig-dishes">
-          {dishes.map((d, i) => (
-            <span className="ig-dish" key={i}>
-              {d.emoji} {d.name} <b style={{ color: scoreColor(d.score) }}>{d.score.toFixed(1)}</b>
-            </span>
-          ))}
-        </div>
-      )}
+      {likeCount > 0 && <div className="ig-likes">{likeCount} Me gusta</div>}
 
       {e.comment && (
         <div className="ig-caption">

@@ -2,7 +2,7 @@ import { useRef, useState, type ReactNode } from 'react'
 import { FOOD_CRITERIA, scoreColor } from '../config/scoring'
 import type { Evaluation } from '../types'
 
-export function Carousel({ slides }: { slides: ReactNode[] }) {
+export function Carousel({ slides, flush = false }: { slides: ReactNode[]; flush?: boolean }) {
   const [idx, setIdx] = useState(0)
   const ref = useRef<HTMLDivElement>(null)
 
@@ -12,11 +12,12 @@ export function Carousel({ slides }: { slides: ReactNode[] }) {
     setIdx(Math.round(el.scrollLeft / el.clientWidth))
   }
 
+  const cls = `carousel${flush ? ' flush' : ''}`
   if (slides.length === 0) return null
-  if (slides.length === 1) return <div className="carousel">{slides[0]}</div>
+  if (slides.length === 1) return <div className={cls}>{slides[0]}</div>
 
   return (
-    <div className="carousel">
+    <div className={cls}>
       <div className="carousel-track" ref={ref} onScroll={onScroll}>
         {slides.map((s, i) => (
           <div className="carousel-slide" key={i}>{s}</div>
