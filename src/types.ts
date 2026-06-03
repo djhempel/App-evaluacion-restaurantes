@@ -199,3 +199,22 @@ export interface Friendship {
 
 /** Ámbito de visualización transversal a la app. */
 export type FeedScope = 'public' | 'friends' | 'group' | 'me'
+
+/** Like a una evaluación. */
+export interface EvalLike {
+  id: string
+  evalId: string
+  uid: string
+  createdAt?: Timestamp
+}
+
+/** Comentario en una evaluación. */
+export interface EvalComment {
+  id: string
+  evalId: string
+  uid: string
+  userName: string
+  userPhoto?: string
+  text: string
+  createdAt?: Timestamp
+}

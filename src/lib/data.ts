@@ -18,6 +18,8 @@ import {
 } from 'firebase/firestore'
 import { db } from '../firebase'
 import type {
+  EvalComment,
+  EvalLike,
   Evaluation,
   FriendRequest,
   Friendship,
@@ -270,6 +272,58 @@ export async function listFriendUids(uid: string): Promise<string[]> {
 
 export async function removeFriend(friendshipId: string): Promise<void> {
   await deleteDoc(doc(db, 'friendships', friendshipId))
+}
+
+/* ---------------------------- Likes & comentarios ---------------------- */
+
+export async function listAllLikes(): Promise<EvalLike[]> {
+  const snap = await getDocs(collection(db, 'likes'))
+  return snap.docs.map((d) => mapDoc<EvalLike>(d))
+}
+
+export async function listLikesByEval(evalId: string): Promise<EvalLike[]> {
+  const q = query(collection(db, 'likes'), where('evalId', '==', evalId))
+  const snap = await getDocs(q)
+  return snap.docs.map((d) => mapDoc<EvalLike>(d))
+}
+
+export async function setLike(evalId: string, uid: string, liked: boolean): Promise<void> {
+  const ref = doc(db, 'likes', `${evalId}_${uid}`)
+  if (liked) await setDoc(ref, { evalId, uid, createdAt: serverTimestamp() })
+  else await deleteDoc(ref)
+}
+
+export async function listAllComments(): Promise<EvalComment[]> {
+  const snap = await getDocs(collection(db, 'comments'))
+  return snap.docs.map((d) => mapDoc<EvalComment>(d))
+}
+
+export async function listCommentsByEval(evalId: string): Promise<EvalComment[]> {
+  const q = query(collection(db, 'comments'), where('evalId', '==', evalId))
+  const snap = await getDocs(q)
+  return snap.docs
+    .map((d) => mapDoc<EvalComment>(d))
+    .sort((a, b) => (a.createdAt?.toMillis() ?? 0) - (b.createdAt?.toMillis() ?? 0))
+}
+
+export async function addComment(
+  evalId: string,
+  user: { uid: string; displayName?: string | null; photoURL?: string | null },
+  text: string,
+): Promise<string> {
+  const ref = await addDoc(collection(db, 'comments'), {
+    evalId,
+    uid: user.uid,
+    userName: user.displayName ?? 'Anónimo',
+    userPhoto: user.photoURL ?? '',
+    text: text.trim(),
+    createdAt: serverTimestamp(),
+  })
+  return ref.id
+}
+
+export async function deleteComment(id: string): Promise<void> {
+  await deleteDoc(doc(db, 'comments', id))
 }
 
 /* -------------------------------- Grupos -------------------------------- */

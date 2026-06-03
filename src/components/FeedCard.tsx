@@ -25,7 +25,21 @@ function topDishes(e: Evaluation, n = 3) {
   return out.sort((a, b) => b.score - a.score).slice(0, n)
 }
 
-export function FeedCard({ e, showAuthor }: { e: Evaluation; showAuthor: boolean }) {
+export function FeedCard({
+  e,
+  showAuthor,
+  liked = false,
+  likeCount = 0,
+  commentCount = 0,
+  onToggleLike,
+}: {
+  e: Evaluation
+  showAuthor: boolean
+  liked?: boolean
+  likeCount?: number
+  commentCount?: number
+  onToggleLike?: (evalId: string, liked: boolean) => void
+}) {
   const hero = heroPhoto(e)
   const dishes = topDishes(e)
   const navigate = useNavigate()
@@ -35,6 +49,12 @@ export function FeedCard({ e, showAuthor }: { e: Evaluation; showAuthor: boolean
     ev.preventDefault()
     ev.stopPropagation()
     navigate(`/u/${e.userId}`)
+  }
+
+  function like(ev: MouseEvent) {
+    ev.preventDefault()
+    ev.stopPropagation()
+    onToggleLike?.(e.id, !liked)
   }
 
   return (
@@ -77,6 +97,12 @@ export function FeedCard({ e, showAuthor }: { e: Evaluation; showAuthor: boolean
           </div>
         )}
         {e.comment && <p className="feed-comment">“{e.comment}”</p>}
+        <div className="feed-actions">
+          <button type="button" className={`feed-act ${liked ? 'liked' : ''}`} onClick={like}>
+            {liked ? '❤️' : '🤍'} {likeCount > 0 ? likeCount : ''}
+          </button>
+          <span className="feed-act">💬 {commentCount > 0 ? commentCount : ''}</span>
+        </div>
       </div>
     </Link>
   )

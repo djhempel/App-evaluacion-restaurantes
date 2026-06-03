@@ -774,6 +774,28 @@ input[type='range']:focus {
   margin: 0;
   font-size: 14px;
 }
+.feed-actions {
+  display: flex;
+  gap: 16px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+.feed-act {
+  background: none;
+  border: none;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--muted);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0;
+}
+.feed-act.liked {
+  color: #e0245e;
+}
 
 /* Scroll horizontal (platos top) */
 .hscroll {

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
-import { listAllEvaluations, listFriendUids, listMyGroups } from '../lib/data'
+import { listAllComments, listAllEvaluations, listAllLikes, listFriendUids, listMyGroups, setLike } from '../lib/data'
 import { FOOD_CRITERIA, scoreColor } from '../config/scoring'
 import type { Evaluation, FeedScope } from '../types'
 import { Spinner } from '../components/Spinner'
@@ -25,17 +25,55 @@ export function Home() {
   const [groupIds, setGroupIds] = useState<Set<string>>(new Set())
   const [scope, setScope] = useState<FeedScope>('public')
   const [view, setView] = useState<'feed' | 'fotos'>('feed')
+  const [period, setPeriod] = useState<'week' | 'all'>('week')
+
+  const [likeCounts, setLikeCounts] = useState<Map<string, number>>(new Map())
+  const [myLikes, setMyLikes] = useState<Set<string>>(new Set())
+  const [commentCounts, setCommentCounts] = useState<Map<string, number>>(new Map())
 
   useEffect(() => {
     if (!user) return
-    Promise.all([listAllEvaluations(), listFriendUids(user.uid), listMyGroups(user.uid)])
-      .then(([all, fu, gs]) => {
+    Promise.all([
+      listAllEvaluations(),
+      listFriendUids(user.uid),
+      listMyGroups(user.uid),
+      listAllLikes(),
+      listAllComments(),
+    ])
+      .then(([all, fu, gs, likes, comments]) => {
         setEvals(all)
         setFriendUids(new Set(fu))
         setGroupIds(new Set(gs.map((g) => g.id)))
+        const lc = new Map<string, number>()
+        const mine = new Set<string>()
+        for (const l of likes) {
+          lc.set(l.evalId, (lc.get(l.evalId) ?? 0) + 1)
+          if (l.uid === user.uid) mine.add(l.evalId)
+        }
+        const cc = new Map<string, number>()
+        for (const c of comments) cc.set(c.evalId, (cc.get(c.evalId) ?? 0) + 1)
+        setLikeCounts(lc)
+        setMyLikes(mine)
+        setCommentCounts(cc)
       })
       .catch(() => setEvals([]))
   }, [user])
+
+  function toggleLike(evalId: string, liked: boolean) {
+    if (!user) return
+    setMyLikes((prev) => {
+      const n = new Set(prev)
+      if (liked) n.add(evalId)
+      else n.delete(evalId)
+      return n
+    })
+    setLikeCounts((prev) => {
+      const n = new Map(prev)
+      n.set(evalId, Math.max(0, (n.get(evalId) ?? 0) + (liked ? 1 : -1)))
+      return n
+    })
+    setLike(evalId, user.uid, liked).catch(() => undefined)
+  }
 
   const scoped = useMemo(() => {
     if (!evals) return []
@@ -47,10 +85,33 @@ export function Home() {
     })
   }, [evals, scope, user, friendUids, groupIds])
 
-  // Platos top (mejor punteados) dentro del ámbito.
+  // Recorte por período (semana = últimos 7 días).
+  const periodScoped = useMemo(() => {
+    if (period === 'all') return scoped
+    const since = Date.now() - 7 * 24 * 60 * 60 * 1000
+    return scoped.filter((e) => (e.createdAt?.toMillis() ?? 0) >= since)
+  }, [scoped, period])
+
+  // Restaurantes en alza (mejor punteados en el período).
+  const topRestaurants = useMemo(() => {
+    const map = new Map<string, { id: string; name: string; sum: number; n: number; photo?: string }>()
+    for (const e of periodScoped) {
+      const cur = map.get(e.restaurantId) ?? { id: e.restaurantId, name: e.restaurantName, sum: 0, n: 0, photo: e.photos?.[0] }
+      cur.sum += e.finalScore
+      cur.n += 1
+      if (!cur.photo && e.photos?.[0]) cur.photo = e.photos[0]
+      map.set(e.restaurantId, cur)
+    }
+    return [...map.values()]
+      .map((v) => ({ ...v, avg: v.sum / v.n }))
+      .sort((a, b) => b.avg - a.avg)
+      .slice(0, 10)
+  }, [periodScoped])
+
+  // Platos top (mejor punteados) dentro del ámbito y período.
   const topDishes = useMemo<TopDish[]>(() => {
     const map = new Map<string, { sum: number; n: number; d: TopDish }>()
-    for (const e of scoped) {
+    for (const e of periodScoped) {
       for (const c of FOOD_CRITERIA) {
         for (const dish of e.dishEntries?.[c.key] ?? []) {
           if (!dish.name) continue
@@ -79,7 +140,7 @@ export function Home() {
       .map((v) => ({ ...v.d, avg: v.sum / v.n }))
       .sort((a, b) => b.avg - a.avg)
       .slice(0, 10)
-  }, [scoped])
+  }, [periodScoped])
 
   const feed = useMemo(
     () =>
@@ -146,10 +207,35 @@ export function Home() {
           )
         ) : (
         <>
+        {/* Período */}
+        <div className="row" style={{ gap: 8, marginBottom: 4 }}>
+          <button className={`btn small ${period === 'week' ? '' : 'secondary'}`} style={{ flex: 1 }} onClick={() => setPeriod('week')}>🗓️ Esta semana</button>
+          <button className={`btn small ${period === 'all' ? '' : 'secondary'}`} style={{ flex: 1 }} onClick={() => setPeriod('all')}>♾️ Siempre</button>
+        </div>
+
+        {/* Restaurantes en alza */}
+        {topRestaurants.length > 0 && (
+          <>
+            <div className="section-title" style={{ marginTop: 8 }}>📈 {period === 'week' ? 'En alza esta semana' : 'Mejores lugares'} {scopeLabel}</div>
+            <div className="hscroll">
+              {topRestaurants.map((r) => (
+                <Link key={r.id} to={`/restaurantes/${r.id}`} className="dish-card">
+                  {r.photo ? <img className="ph" src={r.photo} alt="" /> : <div className="ph placeholder">🍴</div>}
+                  <div className="info">
+                    <div className="dn">{r.name}</div>
+                    <div className="ds">{r.n} {r.n === 1 ? 'evaluación' : 'evals'}</div>
+                    <span className="badge" style={{ background: scoreColor(r.avg), marginTop: 6 }}>⭐ {r.avg.toFixed(1)}</span>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </>
+        )}
+
         {/* Platos top del ámbito */}
         {topDishes.length > 0 && (
           <>
-            <div className="section-title" style={{ marginTop: 4 }}>🔥 Platos top {scopeLabel}</div>
+            <div className="section-title" style={{ marginTop: 4 }}>🔥 Platos top {period === 'week' ? 'de la semana' : ''} {scopeLabel}</div>
             <div className="hscroll">
               {topDishes.map((d) => (
                 <Link key={d.key} to={`/restaurantes/${d.restaurantId}`} className="dish-card">
@@ -187,7 +273,15 @@ export function Home() {
           </div>
         ) : (
           feed.map((e) => (
-            <FeedCard key={e.id} e={e} showAuthor={scope !== 'public' || e.userId === user?.uid} />
+            <FeedCard
+              key={e.id}
+              e={e}
+              showAuthor={scope !== 'public' || e.userId === user?.uid}
+              liked={myLikes.has(e.id)}
+              likeCount={likeCounts.get(e.id) ?? 0}
+              commentCount={commentCounts.get(e.id) ?? 0}
+              onToggleLike={toggleLike}
+            />
           ))
         )}
         </>
