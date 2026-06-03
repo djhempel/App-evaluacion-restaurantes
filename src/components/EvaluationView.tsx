@@ -2,12 +2,14 @@ import { CRITERIA, FOOD_CRITERIA, MAX_SCORE, categoryAverage, scoreColor, scoreP
 import type { Evaluation } from '../types'
 import { formatDate, formatMoney } from '../lib/utils'
 import { ScoreBadge } from './ScoreBadge'
+import { Carousel, buildEvalSlides } from './Carousel'
 import { MiniMap, googleMapsLink } from './MiniMap'
 
 export function EvaluationView({ e, showAuthor = false }: { e: Evaluation; showAuthor?: boolean }) {
   const entries = e.dishEntries
   const hasDishes =
     !!entries && FOOD_CRITERIA.some((c) => (entries[c.key]?.length ?? 0) > 0)
+  const slides = buildEvalSlides(e)
 
   return (
     <>
@@ -23,13 +25,9 @@ export function EvaluationView({ e, showAuthor = false }: { e: Evaluation; showA
         </div>
       </div>
 
-      {e.photos?.length > 0 && (
-        <div className="photo-grid" style={{ marginBottom: 14 }}>
-          {e.photos.map((p) => (
-            <a href={p} target="_blank" rel="noreferrer" key={p}>
-              <img src={p} alt="" className="photo-thumb" />
-            </a>
-          ))}
+      {slides.length > 0 && (
+        <div style={{ marginBottom: 14 }}>
+          <Carousel slides={slides} />
         </div>
       )}
 
