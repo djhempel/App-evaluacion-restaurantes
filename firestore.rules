@@ -20,15 +20,11 @@ service cloud.firestore {
       allow delete: if signedIn() && resource.data.createdBy == request.auth.uid;
     }
 
-    // Evaluaciones: públicas (cualquiera, incluso sin login, para los links),
-    // del dueño, o de un grupo (membresía verificada EN VIVO contra el grupo,
-    // para que sirva aunque alguien se una después de creada la evaluación).
+    // Evaluaciones: ECOSISTEMA SOCIAL → cualquier usuario logueado puede leerlas
+    // (el autor se oculta en la app). Solo el dueño puede crear/editar/borrar.
+    // Las públicas además se pueden leer sin login (para los links compartidos).
     match /evaluations/{id} {
-      allow read: if resource.data.isPublic == true
-        || (signedIn() && resource.data.userId == request.auth.uid)
-        || (signedIn() && resource.data.groupId != null
-            && exists(/databases/$(database)/documents/groups/$(resource.data.groupId))
-            && request.auth.uid in get(/databases/$(database)/documents/groups/$(resource.data.groupId)).data.memberUids);
+      allow read: if signedIn() || resource.data.isPublic == true;
       allow create: if signedIn() && request.resource.data.userId == request.auth.uid;
       allow update, delete: if signedIn() && resource.data.userId == request.auth.uid;
     }

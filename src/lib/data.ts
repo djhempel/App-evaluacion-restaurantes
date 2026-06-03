@@ -81,17 +81,11 @@ export async function listPublicEvaluations(): Promise<Evaluation[]> {
  */
 export async function listEvaluationsByRestaurant(
   restaurantId: string,
-  userId: string,
 ): Promise<Evaluation[]> {
-  const [pub, mine] = await Promise.all([
-    listPublicEvaluations(),
-    listMyEvaluations(userId),
-  ])
-  const byId = new Map<string, Evaluation>()
-  for (const e of [...pub, ...mine]) {
-    if (e.restaurantId === restaurantId) byId.set(e.id, e)
-  }
-  return byNewest(Array.from(byId.values()))
+  // Ecosistema social: todas las evaluaciones del lugar (de cualquier usuario).
+  const q = query(collection(db, 'evaluations'), where('restaurantId', '==', restaurantId))
+  const snap = await getDocs(q)
+  return byNewest(snap.docs.map((d) => mapDoc<Evaluation>(d)))
 }
 
 export async function getEvaluation(id: string): Promise<Evaluation | null> {

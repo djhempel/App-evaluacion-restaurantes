@@ -4,7 +4,7 @@ import { formatDate, formatMoney } from '../lib/utils'
 import { ScoreBadge } from './ScoreBadge'
 import { MiniMap, googleMapsLink } from './MiniMap'
 
-export function EvaluationView({ e }: { e: Evaluation }) {
+export function EvaluationView({ e, showAuthor = false }: { e: Evaluation; showAuthor?: boolean }) {
   const entries = e.dishEntries
   const hasDishes =
     !!entries && FOOD_CRITERIA.some((c) => (entries[c.key]?.length ?? 0) > 0)
@@ -19,7 +19,7 @@ export function EvaluationView({ e }: { e: Evaluation }) {
         </div>
         <ScoreBadge score={e.finalScore} showLabel />
         <div className="muted" style={{ fontSize: 12, marginTop: 8 }}>
-          por {e.userName} · {formatDate(e.createdAt)}
+          {showAuthor ? `por ${e.userName} · ` : ''}{formatDate(e.createdAt)}
         </div>
       </div>
 

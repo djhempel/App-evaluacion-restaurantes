@@ -79,7 +79,7 @@ export function EvaluationDetail() {
     <>
       <SubHeader title="Evaluación" />
       <div className="app-main">
-        <EvaluationView e={e} />
+        <EvaluationView e={e} showAuthor={isOwner} />
 
         {isOwner && (
           <>
