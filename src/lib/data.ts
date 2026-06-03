@@ -27,6 +27,7 @@ import type {
   Friendship,
   Group,
   GroupMember,
+  Outing,
   Restaurant,
   UserProfile,
   WishlistItem,
@@ -409,6 +410,27 @@ export async function joinGroup(groupId: string, member: GroupMember): Promise<v
     memberUids: arrayUnion(member.uid),
     members: arrayUnion(member),
   })
+}
+
+/* ------------------------- Salidas a comer (cuentas) -------------------- */
+
+export async function createOuting(data: Omit<Outing, 'id' | 'createdAt'>): Promise<string> {
+  const ref = await addDoc(collection(db, 'outings'), { ...data, createdAt: serverTimestamp() })
+  return ref.id
+}
+
+export async function listOutingsByGroup(groupId: string): Promise<Outing[]> {
+  const q = query(collection(db, 'outings'), where('groupId', '==', groupId))
+  const snap = await getDocs(q)
+  return byNewest(snap.docs.map((d) => mapDoc<Outing>(d)))
+}
+
+export async function updateOuting(id: string, data: Partial<Outing>): Promise<void> {
+  await updateDoc(doc(db, 'outings', id), data)
+}
+
+export async function deleteOuting(id: string): Promise<void> {
+  await deleteDoc(doc(db, 'outings', id))
 }
 
 export async function listEvaluationsByGroup(groupId: string): Promise<Evaluation[]> {

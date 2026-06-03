@@ -1,22 +1,24 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { useToast } from '../components/Toast'
-import { getGroup, listEvaluationsByGroup, updateGroup } from '../lib/data'
-import type { Evaluation, Group } from '../types'
+import { getGroup, listEvaluationsByGroup, listOutingsByGroup, updateGroup, updateOuting } from '../lib/data'
+import type { Evaluation, Group, Outing } from '../types'
 import { Spinner } from '../components/Spinner'
 import { SubHeader } from '../components/Layout'
 import { ScoreBadge } from '../components/ScoreBadge'
-import { formatDate } from '../lib/utils'
+import { formatDate, formatMoney } from '../lib/utils'
 
 const EMOJI_CHOICES = ['👥', '💑', '👨‍👩‍👧‍👦', '🍷', '🍽️', '🍕', '🍣', '🥩', '🍔', '🏖️', '⭐', '🎉']
 
 export function GroupDetail() {
   const { id } = useParams()
+  const navigate = useNavigate()
   const { user } = useAuth()
   const toast = useToast()
   const [group, setGroup] = useState<Group | null | undefined>(undefined)
   const [evals, setEvals] = useState<Evaluation[]>([])
+  const [outings, setOutings] = useState<Outing[]>([])
 
   // Edición de nombre + emoji.
   const [editing, setEditing] = useState(false)
@@ -41,7 +43,33 @@ export function GroupDetail() {
     if (!id) return
     getGroup(id).then(setGroup)
     listEvaluationsByGroup(id).then(setEvals).catch(() => setEvals([]))
+    listOutingsByGroup(id).then(setOutings).catch(() => setOutings([]))
   }, [id])
+
+  // Saldos netos por miembro a partir de las salidas.
+  const balances = useMemo(() => {
+    const owes = new Map<string, number>() // lo que cada uno debe (no pagado)
+    const owed = new Map<string, number>() // lo que a cada uno le deben
+    for (const o of outings) {
+      for (const s of o.splits) {
+        if (s.paid || s.uid === o.payerUid) continue
+        owes.set(s.uid, (owes.get(s.uid) ?? 0) + s.amount)
+        owed.set(o.payerUid, (owed.get(o.payerUid) ?? 0) + s.amount)
+      }
+    }
+    const uids = new Set<string>([...owes.keys(), ...owed.keys()])
+    return [...uids].map((uid) => ({ uid, net: (owed.get(uid) ?? 0) - (owes.get(uid) ?? 0) }))
+  }, [outings])
+
+  async function toggleSplitPaid(o: Outing, uid: string) {
+    const splits = o.splits.map((s) => (s.uid === uid ? { ...s, paid: !s.paid } : s))
+    setOutings((prev) => prev.map((x) => (x.id === o.id ? { ...x, splits } : x)))
+    await updateOuting(o.id, { splits }).catch(() => undefined)
+  }
+
+  function nameOf(uid: string) {
+    return group?.members.find((m) => m.uid === uid)?.name ?? 'Alguien'
+  }
 
   function startEdit() {
     if (!group) return
@@ -229,6 +257,64 @@ export function GroupDetail() {
                   ))}
             </div>
           </>
+        )}
+
+        {/* Cuentas del grupo */}
+        <div className="section-title" style={{ display: 'flex', justifyContent: 'space-between' }}>
+          <span>💸 Cuentas del grupo</span>
+          <Link to="/salida/nueva" className="sub" style={{ alignSelf: 'center' }}>+ Salida</Link>
+        </div>
+
+        {balances.length > 0 && (
+          <div className="card">
+            {balances.map((b) => (
+              <div className="list-item" key={b.uid}>
+                <div className="meta"><div className="name">{nameOf(b.uid)}{b.uid === user?.uid ? ' (tú)' : ''}</div></div>
+                <span className="chip" style={{ background: b.net > 0 ? '#e3f5e9' : b.net < 0 ? '#fde6e6' : undefined, color: b.net > 0 ? '#1f7a47' : b.net < 0 ? '#b13' : 'var(--muted)' }}>
+                  {b.net > 0 ? `le deben ${formatMoney(b.net)}` : b.net < 0 ? `debe ${formatMoney(-b.net)}` : 'al día'}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {outings.length === 0 ? (
+          <div className="empty" style={{ padding: 24 }}>
+            <p>Sin salidas todavía. Registra una con la boleta y dividimos la cuenta.</p>
+            <button className="btn" onClick={() => navigate('/salida/nueva')}>💸 Nueva salida</button>
+          </div>
+        ) : (
+          outings.map((o) => (
+            <div className="card" key={o.id}>
+              <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 8 }}>
+                {o.photoUrl ? (
+                  <img src={o.photoUrl} alt="boleta" className="thumb" />
+                ) : (
+                  <div className="thumb" style={{ display: 'grid', placeItems: 'center', fontSize: 22 }}>🧾</div>
+                )}
+                <div className="meta">
+                  <div className="name">{o.restaurantName}</div>
+                  <div className="sub">{formatMoney(o.total)} · pagó {o.payerName} · {formatDate(o.createdAt)}</div>
+                </div>
+              </div>
+              {o.splits.map((s) => (
+                <div className="list-item" key={s.uid} style={{ padding: '8px 0' }}>
+                  <div className="meta">
+                    <div className="name" style={{ fontSize: 14 }}>{s.name}{s.uid === o.payerUid ? ' · pagó la cuenta' : ''}</div>
+                    <div className="sub">{formatMoney(s.amount)}</div>
+                  </div>
+                  {s.uid !== o.payerUid && (
+                    <button
+                      className={`btn small ${s.paid ? 'secondary' : ''}`}
+                      onClick={() => toggleSplitPaid(o, s.uid)}
+                    >
+                      {s.paid ? '✓ Pagado' : 'Marcar pagado'}
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          ))
         )}
       </div>
     </>

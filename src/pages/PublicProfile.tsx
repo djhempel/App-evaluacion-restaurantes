@@ -112,6 +112,10 @@ export function PublicProfile() {
                 <Link key={e.id} to={`/evaluacion/${e.id}`} className="grid-cell">
                   {ph ? <img src={ph} alt="" /> : <div className="ph">🍽️</div>}
                   <span className="sc" style={{ background: scoreColor(e.finalScore) }}>{e.finalScore.toFixed(1)}</span>
+                  <div className="cap">
+                    <div className="rn">{e.restaurantName}</div>
+                    {e.address && <div className="rl">📍 {e.address}</div>}
+                  </div>
                 </Link>
               )
             })}

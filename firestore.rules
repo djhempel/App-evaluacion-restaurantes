@@ -52,6 +52,16 @@ service cloud.firestore {
       allow create: if signedIn() && request.resource.data.userId == request.auth.uid;
     }
 
+    // Salidas a comer (cuentas del grupo): solo miembros del grupo.
+    function outingMember(gid) {
+      return exists(/databases/$(database)/documents/groups/$(gid))
+        && request.auth.uid in get(/databases/$(database)/documents/groups/$(gid)).data.memberUids;
+    }
+    match /outings/{id} {
+      allow read, update, delete: if signedIn() && outingMember(resource.data.groupId);
+      allow create: if signedIn() && outingMember(request.resource.data.groupId);
+    }
+
     // Solicitudes de amistad: las ve/gestiona quien la envía o la recibe.
     match /friendRequests/{id} {
       allow read, delete: if signedIn()

@@ -24,6 +24,8 @@ import { JoinGroup } from './pages/JoinGroup'
 import { Friends } from './pages/Friends'
 import { PublicProfile } from './pages/PublicProfile'
 import { Notifications } from './pages/Notifications'
+import { Create } from './pages/Create'
+import { NewOuting } from './pages/NewOuting'
 import type { ReactNode } from 'react'
 
 function Protected({ children }: { children: ReactNode }) {
@@ -78,6 +80,22 @@ export default function App() {
         </Route>
 
         {/* Privadas sin barra inferior (pantallas de detalle/formularios) */}
+        <Route
+          path="/crear"
+          element={
+            <Protected>
+              <Create />
+            </Protected>
+          }
+        />
+        <Route
+          path="/salida/nueva"
+          element={
+            <Protected>
+              <NewOuting />
+            </Protected>
+          }
+        />
         <Route
           path="/evaluar"
           element={

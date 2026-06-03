@@ -200,6 +200,31 @@ export interface Friendship {
 /** Ámbito de visualización transversal a la app. */
 export type FeedScope = 'public' | 'friends' | 'group' | 'me'
 
+/** Reparto de una salida entre un comensal. */
+export interface OutingSplit {
+  uid: string
+  name: string
+  amount: number
+  /** true cuando ya le pagó al que puso la cuenta. */
+  paid: boolean
+}
+
+/** Una salida a comer (grupo) con boleta y división de la cuenta. */
+export interface Outing {
+  id: string
+  groupId: string
+  restaurantId?: string | null
+  restaurantName: string
+  photoUrl?: string | null
+  total: number
+  payerUid: string
+  payerName: string
+  splits: OutingSplit[]
+  note?: string
+  createdBy: string
+  createdAt?: Timestamp
+}
+
 /** Like a una evaluación. */
 export interface EvalLike {
   id: string
