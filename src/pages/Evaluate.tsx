@@ -9,6 +9,7 @@ import { ScoreBadge } from '../components/ScoreBadge'
 import { PhotoUploader } from '../components/PhotoUploader'
 import {
   createEvaluation,
+  createRestaurant,
   getEvaluation,
   getRestaurant,
   listMyGroups,
@@ -22,7 +23,7 @@ import {
   computeFinalScore,
   ratedCount,
 } from '../config/scoring'
-import { getCurrentPosition } from '../lib/utils'
+import { fetchPlaceDetails, getCurrentPosition, hasGooglePlaces, searchPlaces, type PlaceResult } from '../lib/utils'
 import type { DishEntries, Group, RatedDish, Restaurant, Scores, Visibility } from '../types'
 
 const FOOD_KEYS = FOOD_CRITERIA.map((c) => c.key)
@@ -42,6 +43,12 @@ export function Evaluate() {
   const [restaurants, setRestaurants] = useState<Restaurant[] | null>(null)
   const [restaurantId, setRestaurantId] = useState(preselectId ?? '')
   const [restaurant, setRestaurant] = useState<Restaurant | null>(null)
+
+  // Selector de restaurante (buscar existente o de Google).
+  const [pickQuery, setPickQuery] = useState('')
+  const [pickResults, setPickResults] = useState<PlaceResult[]>([])
+  const [picking, setPicking] = useState(false)
+  const [creatingPlace, setCreatingPlace] = useState(false)
 
   const [dishEntries, setDishEntries] = useState<DishEntries>(emptyDishEntries)
   // Solo se usan lugar y atención; el resto se calcula desde los platos.
@@ -74,6 +81,71 @@ export function Evaluate() {
     if (!user) return
     listMyGroups(user.uid).then(setMyGroups).catch(() => setMyGroups([]))
   }, [user])
+
+  // Busca lugares (Google/OSM) para el selector.
+  useEffect(() => {
+    const q = pickQuery.trim()
+    if (q.length < 3) {
+      setPickResults([])
+      return
+    }
+    setPicking(true)
+    const t = setTimeout(() => {
+      searchPlaces(q)
+        .then(setPickResults)
+        .catch(() => setPickResults([]))
+        .finally(() => setPicking(false))
+    }, 500)
+    return () => clearTimeout(t)
+  }, [pickQuery])
+
+  function selectExisting(r: Restaurant) {
+    setRestaurantId(r.id)
+    setPickQuery('')
+    setPickResults([])
+  }
+
+  async function selectGooglePlace(p: PlaceResult) {
+    if (!user) return
+    setCreatingPlace(true)
+    try {
+      const g = p.placeId ? await fetchPlaceDetails(p.placeId) : null
+      const newId = await createRestaurant({
+        name: p.name,
+        cuisine: '',
+        address: p.address ?? '',
+        menuUrl: '',
+        lat: p.lat ?? null,
+        lng: p.lng ?? null,
+        photos: [],
+        menuPhotos: [],
+        dishes: [],
+        createdBy: user.uid,
+        createdByName: user.displayName ?? 'Anónimo',
+        googleRating: g?.rating ?? p.rating ?? null,
+        googleRatingCount: g?.userRatingCount ?? p.userRatingCount ?? null,
+        googlePlaceId: p.placeId ?? null,
+        googleType: g?.type ?? p.type ?? null,
+        googlePhone: g?.phone ?? null,
+        googlePhoneIntl: g?.phoneIntl ?? null,
+        googleWebsite: g?.website ?? null,
+        googleMapsUri: g?.mapsUri ?? null,
+        googlePriceLevel: g?.priceLevel ?? null,
+        googleHours: g?.hours ?? null,
+        googleSummary: g?.summary ?? null,
+        googleReviews: g?.reviews ?? null,
+      })
+      setPickQuery('')
+      setPickResults([])
+      setRestaurantId(newId)
+      toast('Restaurante creado ✓')
+    } catch (e) {
+      console.error(e)
+      toast('No se pudo crear el restaurante')
+    } finally {
+      setCreatingPlace(false)
+    }
+  }
 
   useEffect(() => {
     if (!restaurantId) {
@@ -250,40 +322,86 @@ export function Evaluate() {
     <>
       <SubHeader title={editId ? 'Editar evaluación' : 'Nueva evaluación'} />
       <div className="app-main">
-        {/* Restaurante */}
-        <label className="field">
-          <span>Restaurante</span>
-          {restaurants.length === 0 ? (
-            <div className="card" style={{ textAlign: 'center' }}>
-              <p>No hay restaurantes todavía.</p>
-              <button className="btn small" onClick={() => navigate('/restaurantes/nuevo')}>
-                + Crear restaurante
-              </button>
+        {/* Restaurante: buscar existente o de Google */}
+        {restaurant ? (
+          <div className="card" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            {restaurant.photos?.[0] ? (
+              <img src={restaurant.photos[0]} alt="" className="thumb" />
+            ) : (
+              <div className="thumb" style={{ display: 'grid', placeItems: 'center', fontSize: 22 }}>🍴</div>
+            )}
+            <div className="meta">
+              <div className="name">{restaurant.name}</div>
+              <div className="sub">Evaluando este lugar</div>
             </div>
-          ) : (
-            <>
-              <select
-                value={restaurantId}
-                onChange={(e) => setRestaurantId(e.target.value)}
-              >
-                <option value="">Elige un restaurante…</option>
-                {restaurants.map((r) => (
-                  <option key={r.id} value={r.id}>
-                    {r.name}
-                    {r.cuisine ? ` · ${r.cuisine}` : ''}
-                  </option>
-                ))}
-              </select>
-              <button
-                className="btn ghost small"
-                style={{ marginTop: 6 }}
-                onClick={() => navigate('/restaurantes/nuevo')}
-              >
-                + Crear nuevo restaurante
-              </button>
-            </>
-          )}
-        </label>
+            <button className="btn secondary small" onClick={() => setRestaurantId('')}>Cambiar</button>
+          </div>
+        ) : (
+          <div className="card">
+            <label className="field" style={{ marginBottom: 8 }}>
+              <span>¿Dónde comiste?</span>
+              <input
+                value={pickQuery}
+                onChange={(e) => setPickQuery(e.target.value)}
+                placeholder="Busca el restaurante…"
+                autoComplete="off"
+              />
+            </label>
+
+            {creatingPlace && <p className="hint">Creando restaurante…</p>}
+
+            {/* Existentes que calzan */}
+            {(restaurants ?? [])
+              .filter((r) => r.name.toLowerCase().includes(pickQuery.trim().toLowerCase()))
+              .slice(0, 6)
+              .map((r) => (
+                <button
+                  key={r.id}
+                  type="button"
+                  className="list-item"
+                  onClick={() => selectExisting(r)}
+                  style={{ width: '100%', background: 'none', border: 'none', textAlign: 'left', cursor: 'pointer' }}
+                >
+                  {r.photos?.[0] ? (
+                    <img src={r.photos[0]} alt="" className="thumb" />
+                  ) : (
+                    <div className="thumb" style={{ display: 'grid', placeItems: 'center', fontSize: 20 }}>🍴</div>
+                  )}
+                  <div className="meta">
+                    <div className="name">{r.name}</div>
+                    <div className="sub">{r.cuisine ? `${r.cuisine} · ` : ''}registrado</div>
+                  </div>
+                  <span className="chip">✓</span>
+                </button>
+              ))}
+
+            {/* Resultados de Google (no registrados) */}
+            {picking && <p className="hint">Buscando en {hasGooglePlaces ? 'Google' : 'OpenStreetMap'}…</p>}
+            {pickResults
+              .filter((p) => !p.placeId || !(restaurants ?? []).some((r) => r.googlePlaceId === p.placeId))
+              .map((p, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  className="list-item"
+                  onClick={() => selectGooglePlace(p)}
+                  disabled={creatingPlace}
+                  style={{ width: '100%', background: 'none', border: 'none', textAlign: 'left', cursor: 'pointer' }}
+                >
+                  <span style={{ fontSize: 20 }}>📍</span>
+                  <div className="meta">
+                    <div className="name">{p.name}</div>
+                    <div className="sub">{p.address}</div>
+                  </div>
+                  {p.rating != null ? <span className="chip">{p.rating.toFixed(1)} ⭐</span> : <span className="chip">nuevo</span>}
+                </button>
+              ))}
+
+            <button className="btn ghost small" style={{ marginTop: 6 }} onClick={() => navigate('/restaurantes/nuevo')}>
+              + Crear manualmente
+            </button>
+          </div>
+        )}
 
         {restaurant && (
           <>

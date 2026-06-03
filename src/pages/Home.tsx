@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
-import { addComment, listAllComments, listAllEvaluations, listAllLikes, listFriendUids, setLike } from '../lib/data'
+import { addComment, listAllComments, listAllEvaluations, listAllLikes, listFriendUids, listIncomingRequests, setLike } from '../lib/data'
 import { FOOD_CRITERIA } from '../config/scoring'
 import type { EvalComment, Evaluation } from '../types'
 import { Spinner } from '../components/Spinner'
@@ -18,13 +18,23 @@ export function Home() {
   const [likeCounts, setLikeCounts] = useState<Map<string, number>>(new Map())
   const [myLikes, setMyLikes] = useState<Set<string>>(new Set())
   const [commentsByEval, setCommentsByEval] = useState<Map<string, EvalComment[]>>(new Map())
+  const [notifCount, setNotifCount] = useState(0)
+  const [showOnboard, setShowOnboard] = useState(() => !localStorage.getItem('onboardDone'))
 
   useEffect(() => {
     if (!user) return
-    Promise.all([listAllEvaluations(), listFriendUids(user.uid), listAllLikes(), listAllComments()])
-      .then(([all, fu, likes, comments]) => {
+    Promise.all([listAllEvaluations(), listFriendUids(user.uid), listAllLikes(), listAllComments(), listIncomingRequests(user.uid)])
+      .then(([all, fu, likes, comments, requests]) => {
         setEvals(all)
         setFriendUids(new Set(fu))
+
+        // Badge de notificaciones: solicitudes + likes/comentarios nuevos a lo tuyo.
+        const myEvalIds = new Set(all.filter((e) => e.userId === user.uid).map((e) => e.id))
+        const seen = Number(localStorage.getItem('notifSeen') || 0)
+        let cnt = requests.length
+        for (const l of likes) if (myEvalIds.has(l.evalId) && l.uid !== user.uid && (l.createdAt?.toMillis() ?? 0) > seen) cnt++
+        for (const c of comments) if (myEvalIds.has(c.evalId) && c.uid !== user.uid && (c.createdAt?.toMillis() ?? 0) > seen) cnt++
+        setNotifCount(cnt)
         const lc = new Map<string, number>()
         const mine = new Set<string>()
         for (const l of likes) {
@@ -116,8 +126,27 @@ export function Home() {
       <header className="app-header">
         <h1>Feed 📸</h1>
         <Link to="/amigos" className="btn ghost" title="Amigos">🤝</Link>
+        <Link to="/notificaciones" className="btn ghost" title="Notificaciones" style={{ position: 'relative' }}>
+          🔔
+          {notifCount > 0 && <span className="notif-badge">{notifCount > 9 ? '9+' : notifCount}</span>}
+        </Link>
       </header>
       <div className="app-main">
+        {showOnboard && (
+          <div className="card onboard">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h3 style={{ margin: 0 }}>👋 ¡Bienvenido!</h3>
+              <button className="btn ghost small" onClick={() => { localStorage.setItem('onboardDone', '1'); setShowOnboard(false) }} style={{ color: 'var(--muted)' }}>✕</button>
+            </div>
+            <p className="hint" style={{ marginTop: 6 }}>En 3 pasos le sacas el jugo:</p>
+            <button className="btn block" onClick={() => navigate('/evaluar')} style={{ marginBottom: 8 }}>⭐ Evalúa tu primer lugar</button>
+            <div className="row" style={{ gap: 8 }}>
+              <button className="btn secondary small" style={{ flex: 1 }} onClick={() => navigate('/amigos')}>🤝 Buscar amigos</button>
+              <button className="btn secondary small" style={{ flex: 1 }} onClick={() => navigate('/descubrir')}>🧭 Descubrir</button>
+            </div>
+          </div>
+        )}
+
         {/* Agrupar por */}
         <div className="row" style={{ gap: 8, marginBottom: 14 }}>
           <button className={`btn small ${group === 'evals' ? '' : 'secondary'}`} style={{ flex: 1 }} onClick={() => setGroup('evals')}>

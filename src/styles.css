@@ -813,6 +813,27 @@ input[type='range']:focus {
   color: #e0245e;
 }
 
+.notif-badge {
+  position: absolute;
+  top: 0;
+  right: 0;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: #e0245e;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 800;
+  display: grid;
+  place-items: center;
+  box-shadow: 0 0 0 2px var(--bg);
+}
+.onboard {
+  background: linear-gradient(150deg, #fff, #fff3e6);
+  border: 1px solid var(--hairline);
+}
+
 /* --------------------------- Feed estilo Instagram --------------------- */
 .ig-card {
   background: var(--card);

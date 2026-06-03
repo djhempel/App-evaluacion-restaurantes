@@ -23,6 +23,7 @@ import { GroupDetail } from './pages/GroupDetail'
 import { JoinGroup } from './pages/JoinGroup'
 import { Friends } from './pages/Friends'
 import { PublicProfile } from './pages/PublicProfile'
+import { Notifications } from './pages/Notifications'
 import type { ReactNode } from 'react'
 
 function Protected({ children }: { children: ReactNode }) {
@@ -73,6 +74,7 @@ export default function App() {
           <Route path="/grupos" element={<Groups />} />
           <Route path="/grupos/:id" element={<GroupDetail />} />
           <Route path="/amigos" element={<Friends />} />
+          <Route path="/notificaciones" element={<Notifications />} />
         </Route>
 
         {/* Privadas sin barra inferior (pantallas de detalle/formularios) */}
