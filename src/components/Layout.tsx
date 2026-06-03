@@ -5,7 +5,6 @@ const NAV = [
   { to: '/descubrir', icon: '🧭', label: 'Descubrir', end: false },
   { to: '/evaluar', icon: '＋', label: 'Evaluar', end: false, create: true },
   { to: '/wishlist', icon: '📌', label: 'Lista', end: false },
-  { to: '/grupos', icon: '👥', label: 'Grupos', end: false },
   { to: '/perfil', icon: '👤', label: 'Perfil', end: false },
 ]
 

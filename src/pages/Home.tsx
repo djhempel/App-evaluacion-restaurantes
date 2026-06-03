@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
-import { addComment, listAllComments, listAllEvaluations, listAllLikes, listFriendUids, listIncomingRequests, setLike } from '../lib/data'
+import { addComment, listAllComments, listAllEvaluations, listAllLikes, listFriendUids, listIncomingRequests, listRestaurants, searchUsers, setLike } from '../lib/data'
 import { FOOD_CRITERIA } from '../config/scoring'
-import type { EvalComment, Evaluation } from '../types'
+import type { EvalComment, Evaluation, Restaurant, UserProfile } from '../types'
 import { Spinner } from '../components/Spinner'
 import { FeedCard } from '../components/FeedCard'
 import { DishFeedCard, type DishPost } from '../components/DishFeedCard'
@@ -14,6 +14,11 @@ export function Home() {
   const [evals, setEvals] = useState<Evaluation[] | null>(null)
   const [friendUids, setFriendUids] = useState<Set<string>>(new Set())
   const [group, setGroup] = useState<'evals' | 'platos'>('evals')
+
+  // Buscador (personas y restaurantes).
+  const [q, setQ] = useState('')
+  const [people, setPeople] = useState<UserProfile[]>([])
+  const [restaurants, setRestaurants] = useState<Restaurant[]>([])
 
   const [likeCounts, setLikeCounts] = useState<Map<string, number>>(new Map())
   const [myLikes, setMyLikes] = useState<Set<string>>(new Set())
@@ -54,7 +59,30 @@ export function Home() {
         setCommentsByEval(cmap)
       })
       .catch(() => setEvals([]))
+    listRestaurants().then(setRestaurants).catch(() => setRestaurants([]))
   }, [user])
+
+  // Busca personas (Google de nombres) al escribir.
+  useEffect(() => {
+    if (!user) return
+    const term = q.trim()
+    if (term.length < 2) {
+      setPeople([])
+      return
+    }
+    const t = setTimeout(() => {
+      searchUsers(term, user.uid).then(setPeople).catch(() => setPeople([]))
+    }, 350)
+    return () => clearTimeout(t)
+  }, [q, user])
+
+  const restMatches = useMemo(() => {
+    const term = q.trim().toLowerCase()
+    if (term.length < 2) return []
+    return restaurants
+      .filter((r) => r.name.toLowerCase().includes(term) || (r.cuisine ?? '').toLowerCase().includes(term))
+      .slice(0, 8)
+  }, [q, restaurants])
 
   function toggleLike(evalId: string, liked: boolean) {
     if (!user) return
@@ -132,6 +160,59 @@ export function Home() {
         </Link>
       </header>
       <div className="app-main">
+        <input
+          className="search-bar"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="🔍 Buscar personas o restaurantes…"
+          autoComplete="off"
+        />
+
+        {q.trim().length >= 2 ? (
+          <>
+            <div className="section-title" style={{ marginTop: 4 }}>Personas</div>
+            {people.length === 0 ? (
+              <p className="hint" style={{ marginTop: 0 }}>Sin personas (deben haber iniciado sesión).</p>
+            ) : (
+              <div className="card">
+                {people.map((p) => (
+                  <Link key={p.uid} to={`/u/${p.uid}`} className="list-item" style={{ color: 'inherit' }}>
+                    {p.photoURL ? (
+                      <img src={p.photoURL} alt="" className="thumb" referrerPolicy="no-referrer" style={{ width: 44, height: 44, borderRadius: '50%' }} />
+                    ) : (
+                      <div className="thumb" style={{ width: 44, height: 44, borderRadius: '50%', display: 'grid', placeItems: 'center', fontSize: 20 }}>👤</div>
+                    )}
+                    <div className="meta"><div className="name">{p.displayName}</div>{p.email && <div className="sub">{p.email}</div>}</div>
+                    <span style={{ color: 'var(--muted)' }}>›</span>
+                  </Link>
+                ))}
+              </div>
+            )}
+
+            <div className="section-title">Restaurantes</div>
+            {restMatches.length === 0 ? (
+              <p className="hint" style={{ marginTop: 0 }}>Sin restaurantes con ese nombre.</p>
+            ) : (
+              <div className="card">
+                {restMatches.map((r) => (
+                  <Link key={r.id} to={`/restaurantes/${r.id}`} className="list-item" style={{ color: 'inherit' }}>
+                    {r.photos?.[0] ? (
+                      <img src={r.photos[0]} alt="" className="thumb" />
+                    ) : (
+                      <div className="thumb" style={{ display: 'grid', placeItems: 'center', fontSize: 22 }}>🍴</div>
+                    )}
+                    <div className="meta">
+                      <div className="name">{r.name}</div>
+                      <div className="sub">{r.cuisine || (r.googleRating != null ? `⭐ ${r.googleRating.toFixed(1)}` : '')}</div>
+                    </div>
+                    <span style={{ color: 'var(--muted)' }}>›</span>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </>
+        ) : (
+        <>
         {showOnboard && (
           <div className="card onboard">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -186,6 +267,8 @@ export function Home() {
               onAddComment={addCommentInline}
             />
           ))
+        )}
+        </>
         )}
       </div>
     </>
