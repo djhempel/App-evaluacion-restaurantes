@@ -29,39 +29,48 @@ interface Part {
 
 async function callGemini(parts: Part[]): Promise<ParsedDish[]> {
   if (!GEMINI_KEY) throw new Error('Falta configurar VITE_GEMINI_API_KEY')
-  const res = await fetch(ENDPOINT, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': GEMINI_KEY },
-    body: JSON.stringify({
-      contents: [{ parts }],
-      generationConfig: {
-        temperature: 0,
-        responseMimeType: 'application/json',
-        responseSchema: {
-          type: 'OBJECT',
-          properties: {
-            dishes: {
-              type: 'ARRAY',
-              items: {
-                type: 'OBJECT',
-                properties: {
-                  name: { type: 'STRING' },
-                  category: { type: 'STRING', enum: CATEGORIES },
-                  price: { type: 'NUMBER' },
-                },
-                required: ['name', 'category'],
+  const body = JSON.stringify({
+    contents: [{ parts }],
+    generationConfig: {
+      temperature: 0,
+      responseMimeType: 'application/json',
+      responseSchema: {
+        type: 'OBJECT',
+        properties: {
+          dishes: {
+            type: 'ARRAY',
+            items: {
+              type: 'OBJECT',
+              properties: {
+                name: { type: 'STRING' },
+                category: { type: 'STRING', enum: CATEGORIES },
+                price: { type: 'NUMBER' },
               },
+              required: ['name', 'category'],
             },
           },
-          required: ['dishes'],
         },
+        required: ['dishes'],
       },
-    }),
+    },
   })
-  if (!res.ok) {
-    const detail = await res.text().catch(() => '')
-    console.warn('[gemini] error', res.status, detail)
-    throw new Error(`El lector de cartas falló (${res.status})`)
+
+  let res: Response | null = null
+  for (let attempt = 0; attempt < 2; attempt++) {
+    res = await fetch(ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': GEMINI_KEY },
+      body,
+    })
+    if (res.status !== 429) break
+    if (attempt === 0) await new Promise((r) => setTimeout(r, 4000)) // reintento ante límite por minuto
+  }
+  if (!res || !res.ok) {
+    const status = res?.status
+    const detail = res ? await res.text().catch(() => '') : ''
+    console.warn('[gemini] error', status, detail)
+    if (status === 429) throw new Error('Límite de uso de Gemini (429). Espera un minuto o sube el tope de cuota.')
+    throw new Error(`El lector de cartas falló (${status ?? '?'})`)
   }
   const data = await res.json()
   const text: string | undefined = data?.candidates?.[0]?.content?.parts?.[0]?.text
