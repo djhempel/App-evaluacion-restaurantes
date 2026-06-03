@@ -75,10 +75,13 @@ export function Home() {
         </div>
 
         {/* Acciones rápidas */}
-        <div className="row" style={{ gap: 8, marginBottom: 18 }}>
+        <div className="row" style={{ gap: 8, marginBottom: 10 }}>
           <button className="btn" style={{ flex: 1 }} onClick={() => navigate('/evaluar')}>⭐ Evaluar</button>
-          <button className="btn secondary" style={{ flex: 1 }} onClick={() => navigate('/explorar')}>🧭 Explorar cerca</button>
+          <button className="btn secondary" style={{ flex: 1 }} onClick={() => navigate('/explorar')}>🧭 Explorar</button>
         </div>
+        <button className="btn secondary block" style={{ marginBottom: 18 }} onClick={() => navigate('/ranking')}>
+          🏆 ¿Dónde debería ir? · Ranking
+        </button>
 
         {/* Recomendados cerca (Google) */}
         {hasGooglePlaces && nearby && nearby.length > 0 && (

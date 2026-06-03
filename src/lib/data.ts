@@ -79,6 +79,12 @@ export async function listPublicEvaluations(): Promise<Evaluation[]> {
  * Evaluaciones de un restaurante que el usuario puede ver: todas las públicas
  * (de cualquiera) más las propias (aunque sean privadas).
  */
+/** Todas las evaluaciones del ecosistema (para rankings agregados). */
+export async function listAllEvaluations(): Promise<Evaluation[]> {
+  const snap = await getDocs(collection(db, 'evaluations'))
+  return byNewest(snap.docs.map((d) => mapDoc<Evaluation>(d)))
+}
+
 export async function listEvaluationsByRestaurant(
   restaurantId: string,
 ): Promise<Evaluation[]> {
