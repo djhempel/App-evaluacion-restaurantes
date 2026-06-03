@@ -675,3 +675,191 @@ input[type='range']:focus {
     transition-duration: 0.001ms !important;
   }
 }
+
+/* ------------------------------- Feed ---------------------------------- */
+.feed-card {
+  display: block;
+  background: var(--card);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  border: 1px solid var(--hairline);
+  overflow: hidden;
+  margin-bottom: 16px;
+  color: inherit;
+  animation: rise 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.feed-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+}
+.feed-avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: #f0e6db;
+  flex-shrink: 0;
+}
+.feed-avatar.placeholder {
+  display: grid;
+  place-items: center;
+  font-size: 18px;
+}
+.feed-head .meta {
+  flex: 1;
+  min-width: 0;
+}
+.feed-head .name {
+  font-weight: 700;
+  font-size: 14px;
+}
+.feed-head .sub {
+  font-size: 12px;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.feed-hero {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  background: #f0e6db;
+}
+.feed-hero img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.feed-hero.placeholder {
+  display: grid;
+  place-items: center;
+  font-size: 54px;
+  aspect-ratio: 16 / 9;
+  background: linear-gradient(135deg, #fff3e6, #ffe2c4);
+}
+.feed-hero-score {
+  position: absolute;
+  left: 12px;
+  bottom: 12px;
+  color: #fff;
+  font-weight: 800;
+  font-size: 14px;
+  padding: 5px 11px;
+  border-radius: 999px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+}
+.feed-body {
+  padding: 12px 14px 14px;
+}
+.feed-dishes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.feed-dish {
+  font-size: 12.5px;
+  font-weight: 600;
+  background: #fbf1e5;
+  border: 1px solid var(--hairline);
+  color: #6e6053;
+  padding: 4px 10px;
+  border-radius: 999px;
+}
+.feed-comment {
+  margin: 0;
+  font-size: 14px;
+}
+
+/* Scroll horizontal (platos top) */
+.hscroll {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  margin: 0 -16px 8px;
+  padding: 2px 16px 8px;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.hscroll::-webkit-scrollbar {
+  display: none;
+}
+.dish-card {
+  flex: 0 0 142px;
+  background: var(--card);
+  border-radius: 14px;
+  border: 1px solid var(--hairline);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+  color: inherit;
+}
+.dish-card .ph {
+  width: 100%;
+  height: 96px;
+  object-fit: cover;
+  background: #f0e6db;
+  display: block;
+}
+.dish-card .ph.placeholder {
+  display: grid;
+  place-items: center;
+  font-size: 34px;
+}
+.dish-card .info {
+  padding: 8px 10px;
+}
+.dish-card .dn {
+  font-weight: 700;
+  font-size: 13px;
+  line-height: 1.2;
+}
+.dish-card .ds {
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Grilla de perfil (evaluaciones) */
+.grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+}
+.grid-cell {
+  position: relative;
+  aspect-ratio: 1;
+  background: #f0e6db;
+  border-radius: 8px;
+  overflow: hidden;
+  display: block;
+}
+.grid-cell img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.grid-cell .ph {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  font-size: 26px;
+}
+.grid-cell .sc {
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
+  color: #fff;
+  font-weight: 800;
+  font-size: 11px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.45);
+}
