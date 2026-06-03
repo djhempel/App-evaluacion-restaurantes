@@ -13,7 +13,7 @@ const CATEGORIES = DISH_CATEGORIES.map((c) => c.value)
 
 export const hasMenuAI = Boolean(GEMINI_KEY)
 
-const PROMPT = `Eres un asistente que extrae la CARTA de un restaurante desde imágenes (foto del menú).
+const PROMPT = `Eres un asistente que extrae la CARTA de un restaurante desde una imagen o PDF del menú.
 Devuelve SOLO los platos/bebidas que se pueden pedir.
 Reglas:
 - Cada item: "name" (nombre del plato, sin la descripción larga),
@@ -113,8 +113,22 @@ async function urlToBase64(url: string): Promise<{ data: string; mimeType: strin
   return { data: dataUrl.split(',')[1], mimeType: blob.type || 'image/jpeg' }
 }
 
-/** Lee la carta desde una foto recién elegida. */
+async function fileToRawBase64(file: File): Promise<string> {
+  const dataUrl: string = await new Promise((resolve, reject) => {
+    const fr = new FileReader()
+    fr.onload = () => resolve(fr.result as string)
+    fr.onerror = () => reject(new Error('No se pudo leer el archivo'))
+    fr.readAsDataURL(file)
+  })
+  return dataUrl.split(',')[1]
+}
+
+/** Lee la carta desde un archivo elegido (imagen o PDF). */
 export async function parseMenuFromFile(file: File): Promise<ParsedDish[]> {
+  if (file.type === 'application/pdf') {
+    const data = await fileToRawBase64(file)
+    return callGemini([{ text: PROMPT }, { inline_data: { mime_type: 'application/pdf', data } }])
+  }
   const data = await fileToScaledBase64(file)
   return callGemini([{ text: PROMPT }, { inline_data: { mime_type: 'image/jpeg', data } }])
 }

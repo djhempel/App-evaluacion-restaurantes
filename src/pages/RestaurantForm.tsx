@@ -483,14 +483,14 @@ export function RestaurantForm() {
             <div className="section-title">✨ Leer carta automáticamente</div>
             <div className="card">
               <p className="hint" style={{ marginTop: 0 }}>
-                Saca una foto de la carta (o úsala desde las fotos del menú) y la convertimos en
-                platos seleccionables. Puedes corregirlos antes de guardar.
+                Sube un archivo (foto o PDF) de la carta —o úsala desde las fotos del menú— y la
+                convertimos en platos seleccionables. Puedes corregirlos antes de guardar.
               </p>
               <label className="btn secondary block" style={{ cursor: parsing ? 'default' : 'pointer', opacity: parsing ? 0.6 : 1 }}>
-                📷 Leer carta desde una foto
+                📄 Subir archivo de la carta (foto o PDF)
                 <input
                   type="file"
-                  accept="image/*"
+                  accept="image/*,application/pdf"
                   onChange={onParseFile}
                   disabled={parsing}
                   style={{ display: 'none' }}
