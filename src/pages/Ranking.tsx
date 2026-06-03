@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
-import { listAllEvaluations, listMyGroups, listRestaurants } from '../lib/data'
+import { listAllEvaluations, listFriendUids, listMyGroups, listRestaurants } from '../lib/data'
 import type { Evaluation, Group, Restaurant } from '../types'
 import { Spinner } from '../components/Spinner'
 import { ScoreBadge } from '../components/ScoreBadge'
@@ -9,7 +9,7 @@ import { scoreColor } from '../config/scoring'
 import { CUISINES, cuisineLabel } from '../config/cuisines'
 import { distanceKm, getCurrentPosition } from '../lib/utils'
 
-type Scope = 'all' | 'grupo' | 'mias'
+type Scope = 'all' | 'amigos' | 'grupo' | 'mias'
 type SortBy = 'app' | 'google' | 'count' | 'dist'
 
 interface Row {
@@ -36,6 +36,7 @@ export function Ranking() {
   const [restaurants, setRestaurants] = useState<Restaurant[] | null>(null)
   const [evals, setEvals] = useState<Evaluation[]>([])
   const [myGroups, setMyGroups] = useState<Group[]>([])
+  const [friendUids, setFriendUids] = useState<Set<string>>(new Set())
 
   const [scope, setScope] = useState<Scope>('all')
   const [cuisine, setCuisine] = useState('')
@@ -47,11 +48,12 @@ export function Ranking() {
 
   useEffect(() => {
     if (!user) return
-    Promise.all([listRestaurants(), listAllEvaluations(), listMyGroups(user.uid)])
-      .then(([rs, ev, gs]) => {
+    Promise.all([listRestaurants(), listAllEvaluations(), listMyGroups(user.uid), listFriendUids(user.uid)])
+      .then(([rs, ev, gs, fu]) => {
         setRestaurants(rs)
         setEvals(ev)
         setMyGroups(gs)
+        setFriendUids(new Set(fu))
       })
       .catch(() => setRestaurants([]))
   }, [user])
@@ -73,6 +75,7 @@ export function Ranking() {
     if (!restaurants) return []
     const scoped = evals.filter((e) => {
       if (scope === 'mias') return e.userId === user?.uid
+      if (scope === 'amigos') return friendUids.has(e.userId)
       if (scope === 'grupo') return e.groupId && myGroupIds.has(e.groupId)
       return true
     })
@@ -105,7 +108,7 @@ export function Ranking() {
       return (b.avg ?? 0) - (a.avg ?? 0)
     })
     return list
-  }, [restaurants, evals, scope, cuisine, minCount, minGoogle, sortBy, loc, maxDist, user, myGroupIds])
+  }, [restaurants, evals, scope, cuisine, minCount, minGoogle, sortBy, loc, maxDist, user, myGroupIds, friendUids])
 
   if (restaurants === null) return <Spinner label="Calculando ranking…" />
 
@@ -117,8 +120,9 @@ export function Ranking() {
         <h1>¿Dónde ir? 🏆</h1>
       </header>
       <div className="app-main">
-        <div className="row" style={{ gap: 8, marginBottom: 12 }}>
+        <div className="row" style={{ gap: 6, marginBottom: 12, flexWrap: 'wrap' }}>
           <button className={`btn small ${scope === 'all' ? '' : 'secondary'}`} style={{ flex: 1 }} onClick={() => setScope('all')}>🌐 Todas</button>
+          <button className={`btn small ${scope === 'amigos' ? '' : 'secondary'}`} style={{ flex: 1 }} onClick={() => setScope('amigos')}>🤝 Amigos</button>
           <button className={`btn small ${scope === 'grupo' ? '' : 'secondary'}`} style={{ flex: 1 }} onClick={() => setScope('grupo')}>👥 Grupo</button>
           <button className={`btn small ${scope === 'mias' ? '' : 'secondary'}`} style={{ flex: 1 }} onClick={() => setScope('mias')}>🙋 Mías</button>
         </div>

@@ -51,5 +51,19 @@ service cloud.firestore {
         && (resource.data.userId == request.auth.uid || wishlistMember());
       allow create: if signedIn() && request.resource.data.userId == request.auth.uid;
     }
+
+    // Solicitudes de amistad: las ve/gestiona quien la envía o la recibe.
+    match /friendRequests/{id} {
+      allow read, delete: if signedIn()
+        && (resource.data.fromUid == request.auth.uid || resource.data.toUid == request.auth.uid);
+      allow create: if signedIn() && request.resource.data.fromUid == request.auth.uid;
+      allow update: if signedIn() && resource.data.toUid == request.auth.uid;
+    }
+
+    // Amistades: solo los dos involucrados las leen/crean/borran.
+    match /friendships/{id} {
+      allow read, delete: if signedIn() && request.auth.uid in resource.data.uids;
+      allow create: if signedIn() && request.auth.uid in request.resource.data.uids;
+    }
   }
 }

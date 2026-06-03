@@ -21,6 +21,7 @@ import { Profile } from './pages/Profile'
 import { Groups } from './pages/Groups'
 import { GroupDetail } from './pages/GroupDetail'
 import { JoinGroup } from './pages/JoinGroup'
+import { Friends } from './pages/Friends'
 import type { ReactNode } from 'react'
 
 function Protected({ children }: { children: ReactNode }) {
@@ -69,6 +70,7 @@ export default function App() {
           <Route path="/estadisticas" element={<Stats />} />
           <Route path="/grupos" element={<Groups />} />
           <Route path="/grupos/:id" element={<GroupDetail />} />
+          <Route path="/amigos" element={<Friends />} />
         </Route>
 
         {/* Privadas sin barra inferior (pantallas de detalle/formularios) */}

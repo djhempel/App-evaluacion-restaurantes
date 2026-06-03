@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
-import { getRestaurant, listEvaluationsByRestaurant, listMyGroups } from '../lib/data'
+import { getRestaurant, listEvaluationsByRestaurant, listFriendUids, listMyGroups } from '../lib/data'
 import type { Evaluation, Group, Restaurant } from '../types'
 import { Spinner } from '../components/Spinner'
 import { SubHeader } from '../components/Layout'
@@ -12,7 +12,7 @@ import { cuisineLabel } from '../config/cuisines'
 import { FOOD_CRITERIA, scoreColor } from '../config/scoring'
 import { formatDate, formatMoney } from '../lib/utils'
 
-type Scope = 'publico' | 'grupo' | 'solo'
+type Scope = 'publico' | 'amigos' | 'grupo' | 'solo'
 
 /** Plato agregado (mismo nombre) a partir de varias evaluaciones. */
 interface AggDish {
@@ -30,6 +30,7 @@ export function RestaurantDetail() {
   const [r, setR] = useState<Restaurant | null | undefined>(undefined)
   const [evals, setEvals] = useState<Evaluation[]>([])
   const [myGroups, setMyGroups] = useState<Group[]>([])
+  const [friendUids, setFriendUids] = useState<Set<string>>(new Set())
   const [scope, setScope] = useState<Scope>('publico')
 
   useEffect(() => {
@@ -37,6 +38,7 @@ export function RestaurantDetail() {
     getRestaurant(id).then(setR)
     listEvaluationsByRestaurant(id).then(setEvals).catch(() => setEvals([]))
     listMyGroups(user.uid).then(setMyGroups).catch(() => setMyGroups([]))
+    listFriendUids(user.uid).then((u) => setFriendUids(new Set(u))).catch(() => setFriendUids(new Set()))
   }, [id, user])
 
   const myGroupIds = useMemo(() => new Set(myGroups.map((g) => g.id)), [myGroups])
@@ -45,9 +47,10 @@ export function RestaurantDetail() {
   const shown = useMemo(() => {
     if (!user) return evals
     if (scope === 'solo') return evals.filter((e) => e.userId === user.uid)
+    if (scope === 'amigos') return evals.filter((e) => friendUids.has(e.userId))
     if (scope === 'grupo') return evals.filter((e) => e.groupId && myGroupIds.has(e.groupId))
     return evals
-  }, [evals, scope, user, myGroupIds])
+  }, [evals, scope, user, myGroupIds, friendUids])
 
   // Platos agregados por sección (categoría) a partir de las evaluaciones mostradas.
   const dishSections = useMemo(() => {
@@ -216,23 +219,20 @@ export function RestaurantDetail() {
 
         {/* Filtro de ámbito del ecosistema */}
         <div className="section-title">Qué evaluaciones ver</div>
-        <div className="row" style={{ gap: 8, marginBottom: 4 }}>
-          <button className={`btn small ${scope === 'publico' ? '' : 'secondary'}`} style={{ flex: 1 }} onClick={() => setScope('publico')}>
-            🌐 Público
-          </button>
-          <button className={`btn small ${scope === 'grupo' ? '' : 'secondary'}`} style={{ flex: 1 }} onClick={() => setScope('grupo')}>
-            👥 Grupo
-          </button>
-          <button className={`btn small ${scope === 'solo' ? '' : 'secondary'}`} style={{ flex: 1 }} onClick={() => setScope('solo')}>
-            🙋 Solo yo
-          </button>
+        <div className="row" style={{ gap: 6, marginBottom: 4, flexWrap: 'wrap' }}>
+          <button className={`btn small ${scope === 'publico' ? '' : 'secondary'}`} style={{ flex: 1 }} onClick={() => setScope('publico')}>🌐 Público</button>
+          <button className={`btn small ${scope === 'amigos' ? '' : 'secondary'}`} style={{ flex: 1 }} onClick={() => setScope('amigos')}>🤝 Amigos</button>
+          <button className={`btn small ${scope === 'grupo' ? '' : 'secondary'}`} style={{ flex: 1 }} onClick={() => setScope('grupo')}>👥 Grupo</button>
+          <button className={`btn small ${scope === 'solo' ? '' : 'secondary'}`} style={{ flex: 1 }} onClick={() => setScope('solo')}>🙋 Yo</button>
         </div>
         <p className="hint" style={{ marginBottom: 4 }}>
           {scope === 'publico'
             ? 'Todas las evaluaciones (autor anónimo).'
-            : scope === 'grupo'
-              ? 'Solo de tus grupos.'
-              : 'Solo tus evaluaciones.'}
+            : scope === 'amigos'
+              ? 'Solo de tus amigos.'
+              : scope === 'grupo'
+                ? 'Solo de tus grupos.'
+                : 'Solo tus evaluaciones.'}
         </p>
 
         {shown.length === 0 ? (
@@ -282,7 +282,13 @@ export function RestaurantDetail() {
                       <div className="thumb" style={{ display: 'grid', placeItems: 'center', fontSize: 22 }}>🍽️</div>
                     )}
                     <div className="meta">
-                      <div className="name">{e.userId === user?.uid ? 'Tu evaluación' : 'Evaluación anónima'}</div>
+                      <div className="name">
+                        {e.userId === user?.uid
+                          ? 'Tu evaluación'
+                          : scope === 'publico'
+                            ? 'Evaluación anónima'
+                            : e.userName}
+                      </div>
                       <div className="sub">
                         {dishCount > 0 ? `${dishCount} plato${dishCount > 1 ? 's' : ''} · ` : ''}
                         {formatDate(e.createdAt)}

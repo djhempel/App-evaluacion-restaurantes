@@ -10,13 +10,24 @@ import {
   orderBy,
   query,
   serverTimestamp,
+  setDoc,
   updateDoc,
   where,
   type DocumentData,
   type QueryDocumentSnapshot,
 } from 'firebase/firestore'
 import { db } from '../firebase'
-import type { Evaluation, Group, GroupMember, Restaurant, WishlistItem } from '../types'
+import type {
+  Evaluation,
+  FriendRequest,
+  Friendship,
+  Group,
+  GroupMember,
+  Restaurant,
+  UserProfile,
+  WishlistItem,
+} from '../types'
+import { normalizeText } from './utils'
 
 function mapDoc<T>(snap: QueryDocumentSnapshot<DocumentData>): T {
   return { id: snap.id, ...snap.data() } as T
@@ -160,6 +171,88 @@ export async function updateWishlist(
 
 export async function deleteWishlist(id: string): Promise<void> {
   await deleteDoc(doc(db, 'wishlist', id))
+}
+
+/* -------------------------------- Amigos -------------------------------- */
+
+function pairId(a: string, b: string): string {
+  return [a, b].sort().join('_')
+}
+
+/** Busca usuarios por nombre o email (para enviar solicitudes). */
+export async function searchUsers(term: string, excludeUid: string): Promise<UserProfile[]> {
+  const t = normalizeText(term)
+  const email = term.trim().toLowerCase()
+  if (t.length < 2) return []
+  const snap = await getDocs(collection(db, 'users'))
+  return snap.docs
+    .map((d) => d.data() as UserProfile)
+    .filter(
+      (u) =>
+        u.uid !== excludeUid &&
+        (normalizeText(u.displayName ?? '').includes(t) || (u.email ?? '').toLowerCase().includes(email)),
+    )
+    .slice(0, 15)
+}
+
+export async function sendFriendRequest(from: UserProfile, to: UserProfile): Promise<void> {
+  await setDoc(doc(db, 'friendRequests', pairId(from.uid, to.uid)), {
+    fromUid: from.uid,
+    fromName: from.displayName,
+    fromPhoto: from.photoURL ?? '',
+    toUid: to.uid,
+    toName: to.displayName,
+    status: 'pending',
+    createdAt: serverTimestamp(),
+  })
+}
+
+/** Solicitudes recibidas pendientes. */
+export async function listIncomingRequests(uid: string): Promise<FriendRequest[]> {
+  const q = query(collection(db, 'friendRequests'), where('toUid', '==', uid))
+  const snap = await getDocs(q)
+  return snap.docs
+    .map((d) => mapDoc<FriendRequest>(d))
+    .filter((r) => r.status === 'pending')
+}
+
+/** Solicitudes que envié (pendientes). */
+export async function listOutgoingRequests(uid: string): Promise<FriendRequest[]> {
+  const q = query(collection(db, 'friendRequests'), where('fromUid', '==', uid))
+  const snap = await getDocs(q)
+  return snap.docs.map((d) => mapDoc<FriendRequest>(d)).filter((r) => r.status === 'pending')
+}
+
+export async function acceptFriendRequest(req: FriendRequest, me: UserProfile): Promise<void> {
+  await setDoc(doc(db, 'friendships', pairId(req.fromUid, req.toUid)), {
+    uids: [req.fromUid, req.toUid],
+    users: [
+      { uid: req.fromUid, displayName: req.fromName, photoURL: req.fromPhoto ?? '' },
+      { uid: me.uid, displayName: me.displayName, photoURL: me.photoURL ?? '' },
+    ],
+    createdAt: serverTimestamp(),
+  })
+  await deleteDoc(doc(db, 'friendRequests', req.id))
+}
+
+export async function declineFriendRequest(reqId: string): Promise<void> {
+  await deleteDoc(doc(db, 'friendRequests', reqId))
+}
+
+export async function listFriendships(uid: string): Promise<Friendship[]> {
+  const q = query(collection(db, 'friendships'), where('uids', 'array-contains', uid))
+  const snap = await getDocs(q)
+  return snap.docs.map((d) => mapDoc<Friendship>(d))
+}
+
+/** UIDs de mis amigos. */
+export async function listFriendUids(uid: string): Promise<string[]> {
+  const fs = await listFriendships(uid)
+  return fs.flatMap((f) => f.uids).filter((u) => u !== uid)
+}
+
+export async function removeFriend(friendshipId: string): Promise<void> {
+  await deleteDoc(doc(db, 'friendships', friendshipId))
 }
 
 /* -------------------------------- Grupos -------------------------------- */

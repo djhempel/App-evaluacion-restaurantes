@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
-import { listEvaluationsByGroup, listMyEvaluations, listMyGroups } from '../lib/data'
+import { listAllEvaluations, listFriendUids, listMyEvaluations, listMyGroups } from '../lib/data'
 import { discoverPlaces, getCurrentPosition, hasGooglePlaces, type PlaceResult } from '../lib/utils'
 import type { Evaluation } from '../types'
 import { Spinner } from '../components/Spinner'
@@ -15,7 +15,7 @@ export function Home() {
   const { user } = useAuth()
   const navigate = useNavigate()
   const [evals, setEvals] = useState<Evaluation[] | null>(null)
-  const [groupNews, setGroupNews] = useState<Evaluation[]>([])
+  const [feed, setFeed] = useState<Evaluation[]>([])
   const [nearby, setNearby] = useState<PlaceResult[] | null>(nearbyCache?.items ?? null)
 
   useEffect(() => {
@@ -24,14 +24,17 @@ export function Home() {
       .then(setEvals)
       .catch(() => setEvals([]))
 
-    listMyGroups(user.uid)
-      .then(async (groups) => {
-        const lists = await Promise.all(groups.map((g) => listEvaluationsByGroup(g.id)))
-        const all = lists.flat().filter((e) => e.userId !== user.uid)
-        all.sort((a, b) => (b.createdAt?.toMillis() ?? 0) - (a.createdAt?.toMillis() ?? 0))
-        setGroupNews(all.slice(0, 5))
+    Promise.all([listAllEvaluations(), listFriendUids(user.uid), listMyGroups(user.uid)])
+      .then(([all, friendUids, groups]) => {
+        const fset = new Set(friendUids)
+        const gset = new Set(groups.map((g) => g.id))
+        const f = all.filter(
+          (e) => e.userId !== user.uid && (fset.has(e.userId) || (e.groupId && gset.has(e.groupId))),
+        )
+        f.sort((a, b) => (b.createdAt?.toMillis() ?? 0) - (a.createdAt?.toMillis() ?? 0))
+        setFeed(f.slice(0, 6))
       })
-      .catch(() => setGroupNews([]))
+      .catch(() => setFeed([]))
   }, [user])
 
   useEffect(() => {
@@ -114,12 +117,15 @@ export function Home() {
           </>
         )}
 
-        {/* Novedades de grupos */}
-        {groupNews.length > 0 && (
+        {/* Feed de amigos y grupos */}
+        {feed.length > 0 && (
           <>
-            <div className="section-title">👥 Novedades de tus grupos</div>
+            <div className="section-title" style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <span>🤝 Feed de amigos y grupos</span>
+              <Link to="/amigos" className="sub" style={{ alignSelf: 'center' }}>Amigos ›</Link>
+            </div>
             <div className="card">
-              {groupNews.map((e) => (
+              {feed.map((e) => (
                 <Link key={e.id} to={`/evaluacion/${e.id}`} className="list-item" style={{ color: 'inherit' }}>
                   {e.photos?.[0] ? (
                     <img src={e.photos[0]} alt="" className="thumb" />

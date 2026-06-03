@@ -48,6 +48,11 @@ export function Profile() {
             <div className="meta"><div className="name">Grupos</div></div>
             <span style={{ color: 'var(--muted)' }}>›</span>
           </Link>
+          <Link to="/amigos" className="list-item" style={{ color: 'inherit', padding: 16 }}>
+            <span style={{ fontSize: 22 }}>🤝</span>
+            <div className="meta"><div className="name">Amigos</div></div>
+            <span style={{ color: 'var(--muted)' }}>›</span>
+          </Link>
           <Link to="/restaurantes/nuevo" className="list-item" style={{ color: 'inherit', padding: 16 }}>
             <span style={{ fontSize: 22 }}>➕</span>
             <div className="meta"><div className="name">Crear restaurante</div></div>

@@ -176,3 +176,26 @@ export interface Group {
 
 /** Quién puede ver una evaluación. */
 export type Visibility = 'private' | 'group' | 'public'
+
+/** Solicitud de amistad. */
+export interface FriendRequest {
+  id: string
+  fromUid: string
+  fromName: string
+  fromPhoto?: string
+  toUid: string
+  toName?: string
+  status: 'pending' | 'accepted'
+  createdAt?: Timestamp
+}
+
+/** Amistad establecida (bidireccional). */
+export interface Friendship {
+  id: string
+  uids: string[]
+  users: UserProfile[]
+  createdAt?: Timestamp
+}
+
+/** Ámbito de visualización transversal a la app. */
+export type FeedScope = 'public' | 'friends' | 'group' | 'me'
