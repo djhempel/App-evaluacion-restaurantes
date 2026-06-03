@@ -112,31 +112,25 @@ Si la dejas vacía, la búsqueda usa **OpenStreetMap** (gratis, pero sin nota de
 > sola vez por lugar** (al seleccionarlo), así que para uso personal sigues dentro
 > del tier gratis. El **tope de cuota** y la **alerta de presupuesto** te protegen igual.
 
-## 🧠 (Opcional) Carta inteligente con Gemini (Cloud Function)
+## 🧠 (Opcional) Carta inteligente con Gemini
 
-Convierte una **foto, las fotos del menú o un link** de la carta en platos
-seleccionables. Vive en una Cloud Function (`functions/`, función `parseMenu`)
-que llama a **Gemini Flash** de forma segura (la API key nunca llega al navegador).
-Requiere plan **Blaze** (el mismo que ya usas).
+Saca una **foto de la carta** (o usa las fotos del menú) y se convierte en platos
+seleccionables. Llama a **Gemini Flash** directo desde el navegador (sin backend).
 
 1. **Crea una API key de Gemini** (gratis) en <https://aistudio.google.com/apikey>.
-2. **Sin computador → usa Cloud Shell** (terminal en el navegador):
-   abre <https://shell.cloud.google.com>, elige tu proyecto y ejecuta:
+2. **Restríngela** en <https://console.cloud.google.com> (la misma key aparece ahí):
+   - *Restricción de aplicación* → **Sitios web (HTTP referrer)** → tu dominio
+     (`https://tu-proyecto.web.app/*` y `.../firebaseapp.com/*`).
+   - *Restricción de API* → **Generative Language API**.
+   - **Tope de cuota** en la Generative Language API (ej. 100/día) → a prueba de cobros.
+3. Ponla en tu `.env` y como **Secret de GitHub** (`VITE_GEMINI_API_KEY`):
 
-   ```bash
-   git clone https://github.com/djhempel/app-evaluacion-restaurantes.git
-   cd app-evaluacion-restaurantes
-   npx firebase-tools@13 functions:secrets:set GEMINI_API_KEY   # pega tu key
-   npx firebase-tools@13 deploy --only functions --project TU_PROJECT_ID
+   ```env
+   VITE_GEMINI_API_KEY=...
    ```
 
-   El primer deploy habilita solas las APIs necesarias (Cloud Functions, Cloud
-   Build, Artifact Registry) y puede tardar un par de minutos.
-3. Listo: en **Nuevo restaurante → ✨ Leer carta automáticamente** ya funciona.
-
-> 💰 Gemini Flash tiene un **tier gratis generoso** (cientos de cartas/mes). Cada
-> lectura es 1 llamada. La función corre en `us-central1` (igual que el cliente).
-> Si cambias de región, ajusta `getFunctions(app, 'us-central1')` en `src/firebase.ts`.
+Si la dejas vacía, simplemente no aparece el botón "Leer carta". Gemini Flash tiene
+un **tier gratis generoso** (cientos de cartas/mes); cada lectura es 1 llamada.
 
 ## 📲 Publicar sin terminal (recomendado, desde el celular)
 

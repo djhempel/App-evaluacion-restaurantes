@@ -19,7 +19,7 @@ import {
 import type { GoogleReview } from '../types'
 import { DISH_CATEGORIES } from '../config/dishes'
 import { CUISINES, CUISINE_BY_VALUE } from '../config/cuisines'
-import { parseMenuFromFile, parseMenuFromLink, parseMenuFromUrls, type ParsedDish } from '../lib/menu'
+import { parseMenuFromFile, parseMenuFromUrls, hasMenuAI, type ParsedDish } from '../lib/menu'
 import type { Dish, Restaurant } from '../types'
 
 interface GoogleInfo {
@@ -478,44 +478,38 @@ export function RestaurantForm() {
           />
         </label>
 
-        <div className="section-title">✨ Leer carta automáticamente</div>
-        <div className="card">
-          <p className="hint" style={{ marginTop: 0 }}>
-            Sube una foto de la carta, o úsala desde las fotos del menú / el link de arriba, y la
-            convertimos en platos seleccionables. Puedes corregirlos antes de guardar.
-          </p>
-          <label className="btn secondary block" style={{ cursor: parsing ? 'default' : 'pointer', opacity: parsing ? 0.6 : 1 }}>
-            📷 Leer carta desde una foto
-            <input
-              type="file"
-              accept="image/*"
-              onChange={onParseFile}
-              disabled={parsing}
-              style={{ display: 'none' }}
-            />
-          </label>
-          {menuPhotos.length > 0 && (
-            <button
-              className="btn secondary block"
-              style={{ marginTop: 8 }}
-              disabled={parsing}
-              onClick={() => runParseMenu(() => parseMenuFromUrls(menuPhotos))}
-            >
-              🍽️ Leer de las {menuPhotos.length} foto{menuPhotos.length > 1 ? 's' : ''} del menú
-            </button>
-          )}
-          {menuUrl.trim() && (
-            <button
-              className="btn secondary block"
-              style={{ marginTop: 8 }}
-              disabled={parsing}
-              onClick={() => runParseMenu(() => parseMenuFromLink(menuUrl.trim()))}
-            >
-              🔗 Leer del link de la carta
-            </button>
-          )}
-          {parsing && <p className="hint" style={{ marginBottom: 0 }}>Leyendo la carta… (puede tardar unos segundos)</p>}
-        </div>
+        {hasMenuAI && (
+          <>
+            <div className="section-title">✨ Leer carta automáticamente</div>
+            <div className="card">
+              <p className="hint" style={{ marginTop: 0 }}>
+                Saca una foto de la carta (o úsala desde las fotos del menú) y la convertimos en
+                platos seleccionables. Puedes corregirlos antes de guardar.
+              </p>
+              <label className="btn secondary block" style={{ cursor: parsing ? 'default' : 'pointer', opacity: parsing ? 0.6 : 1 }}>
+                📷 Leer carta desde una foto
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={onParseFile}
+                  disabled={parsing}
+                  style={{ display: 'none' }}
+                />
+              </label>
+              {menuPhotos.length > 0 && (
+                <button
+                  className="btn secondary block"
+                  style={{ marginTop: 8 }}
+                  disabled={parsing}
+                  onClick={() => runParseMenu(() => parseMenuFromUrls(menuPhotos))}
+                >
+                  🍽️ Leer de las {menuPhotos.length} foto{menuPhotos.length > 1 ? 's' : ''} del menú
+                </button>
+              )}
+              {parsing && <p className="hint" style={{ marginBottom: 0 }}>Leyendo la carta… (puede tardar unos segundos)</p>}
+            </div>
+          </>
+        )}
 
         <div className="section-title">Platos de la carta</div>
         <div className="card">
