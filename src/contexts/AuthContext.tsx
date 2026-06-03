@@ -12,6 +12,7 @@ import {
   signInWithPopup,
   signInWithRedirect,
   signOut,
+  updateProfile,
   type User,
 } from 'firebase/auth'
 import { doc, serverTimestamp, setDoc } from 'firebase/firestore'
@@ -26,8 +27,11 @@ interface AuthState {
   user: User | null
   loading: boolean
   configured: boolean
+  /** Foto de perfil efectiva (personalizada o de Google). */
+  photoURL: string
   loginWithGoogle: () => Promise<void>
   logout: () => Promise<void>
+  updateAvatar: (url: string) => Promise<void>
 }
 
 const AuthContext = createContext<AuthState | undefined>(undefined)
@@ -35,6 +39,7 @@ const AuthContext = createContext<AuthState | undefined>(undefined)
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
+  const [photoURL, setPhotoURL] = useState('')
 
   useEffect(() => {
     if (!isFirebaseConfigured) {
@@ -45,6 +50,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     getRedirectResult(auth).catch((e) => console.error('redirect login', e))
     const unsub = onAuthStateChanged(auth, async (u) => {
       setUser(u)
+      setPhotoURL(u?.photoURL ?? '')
       setLoading(false)
       if (u) {
         // Guardamos/actualizamos el perfil del usuario.
@@ -69,6 +75,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       user,
       loading,
       configured: isFirebaseConfigured,
+      photoURL,
       loginWithGoogle: async () => {
         if (isMobile) {
           // La página navega a Google y vuelve; el inicio se completa solo.
@@ -80,8 +87,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       logout: async () => {
         await signOut(auth)
       },
+      updateAvatar: async (url: string) => {
+        if (!auth.currentUser) return
+        await updateProfile(auth.currentUser, { photoURL: url })
+        await setDoc(doc(db, 'users', auth.currentUser.uid), { photoURL: url }, { merge: true })
+        setPhotoURL(url)
+      },
     }),
-    [user, loading],
+    [user, loading, photoURL],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
