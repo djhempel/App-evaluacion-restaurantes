@@ -13,7 +13,9 @@ import {
   setDoc,
   updateDoc,
   where,
+  writeBatch,
   type DocumentData,
+  type DocumentReference,
   type QueryDocumentSnapshot,
 } from 'firebase/firestore'
 import { db } from '../firebase'
@@ -324,6 +326,30 @@ export async function addComment(
 
 export async function deleteComment(id: string): Promise<void> {
   await deleteDoc(doc(db, 'comments', id))
+}
+
+/** Propaga el nombre/foto del usuario a sus evaluaciones y comentarios pasados. */
+export async function propagateProfile(
+  uid: string,
+  data: { userPhoto?: string; userName?: string },
+): Promise<void> {
+  const patch: Record<string, string> = {}
+  if (data.userPhoto !== undefined) patch.userPhoto = data.userPhoto
+  if (data.userName !== undefined) patch.userName = data.userName
+  if (Object.keys(patch).length === 0) return
+
+  const refs: DocumentReference[] = []
+  const evs = await getDocs(query(collection(db, 'evaluations'), where('userId', '==', uid)))
+  evs.forEach((d) => refs.push(d.ref))
+  const cms = await getDocs(query(collection(db, 'comments'), where('uid', '==', uid)))
+  cms.forEach((d) => refs.push(d.ref))
+
+  // Firestore permite hasta 500 operaciones por lote.
+  for (let i = 0; i < refs.length; i += 400) {
+    const batch = writeBatch(db)
+    for (const ref of refs.slice(i, i + 400)) batch.update(ref, patch)
+    await batch.commit()
+  }
 }
 
 /* -------------------------------- Grupos -------------------------------- */

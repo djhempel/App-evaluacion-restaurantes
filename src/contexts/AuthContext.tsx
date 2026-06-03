@@ -17,6 +17,7 @@ import {
 } from 'firebase/auth'
 import { doc, serverTimestamp, setDoc } from 'firebase/firestore'
 import { auth, db, googleProvider, isFirebaseConfigured } from '../firebase'
+import { propagateProfile } from '../lib/data'
 
 /** En celulares los popups suelen bloquearse: usamos redirección. */
 const isMobile =
@@ -89,9 +90,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       },
       updateAvatar: async (url: string) => {
         if (!auth.currentUser) return
+        const uid = auth.currentUser.uid
         await updateProfile(auth.currentUser, { photoURL: url })
-        await setDoc(doc(db, 'users', auth.currentUser.uid), { photoURL: url }, { merge: true })
+        await setDoc(doc(db, 'users', uid), { photoURL: url }, { merge: true })
         setPhotoURL(url)
+        // Propaga a publicaciones y comentarios pasados (en segundo plano).
+        propagateProfile(uid, { userPhoto: url }).catch(() => undefined)
       },
     }),
     [user, loading, photoURL],
