@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { useToast } from '../components/Toast'
@@ -23,6 +23,19 @@ export function GroupDetail() {
   const [editName, setEditName] = useState('')
   const [editEmoji, setEditEmoji] = useState('👥')
   const [savingEdit, setSavingEdit] = useState(false)
+  const [groupView, setGroupView] = useState<'rest' | 'all'>('rest')
+
+  const byRestaurant = useMemo(() => {
+    const map = new Map<string, { id: string; name: string; photo?: string; sum: number; n: number }>()
+    for (const e of evals) {
+      const cur = map.get(e.restaurantId) ?? { id: e.restaurantId, name: e.restaurantName, photo: e.photos?.[0], sum: 0, n: 0 }
+      cur.sum += e.finalScore
+      cur.n += 1
+      if (!cur.photo && e.photos?.[0]) cur.photo = e.photos[0]
+      map.set(e.restaurantId, cur)
+    }
+    return [...map.values()].map((v) => ({ ...v, avg: v.sum / v.n })).sort((a, b) => b.avg - a.avg)
+  }, [evals])
 
   useEffect(() => {
     if (!id) return
@@ -175,22 +188,47 @@ export function GroupDetail() {
             <p>Aún no hay evaluaciones compartidas con este grupo.</p>
           </div>
         ) : (
-          <div className="card">
-            {evals.map((e) => (
-              <Link key={e.id} to={`/evaluacion/${e.id}`} className="list-item" style={{ color: 'inherit' }}>
-                {e.photos?.[0] ? (
-                  <img src={e.photos[0]} alt="" className="thumb" />
-                ) : (
-                  <div className="thumb" style={{ display: 'grid', placeItems: 'center', fontSize: 24 }}>🍽️</div>
-                )}
-                <div className="meta">
-                  <div className="name">{e.restaurantName}</div>
-                  <div className="sub">{e.userName} · {formatDate(e.createdAt)}</div>
-                </div>
-                <ScoreBadge score={e.finalScore} />
-              </Link>
-            ))}
-          </div>
+          <>
+            <div className="row" style={{ gap: 8, marginBottom: 12 }}>
+              <button className={`btn small ${groupView === 'rest' ? '' : 'secondary'}`} style={{ flex: 1 }} onClick={() => setGroupView('rest')}>
+                🍴 Por restaurante
+              </button>
+              <button className={`btn small ${groupView === 'all' ? '' : 'secondary'}`} style={{ flex: 1 }} onClick={() => setGroupView('all')}>
+                🍽️ Todas
+              </button>
+            </div>
+            <div className="card">
+              {groupView === 'rest'
+                ? byRestaurant.map((r) => (
+                    <Link key={r.id} to={`/restaurantes/${r.id}`} className="list-item" style={{ color: 'inherit' }}>
+                      {r.photo ? (
+                        <img src={r.photo} alt="" className="thumb" />
+                      ) : (
+                        <div className="thumb" style={{ display: 'grid', placeItems: 'center', fontSize: 24 }}>🍴</div>
+                      )}
+                      <div className="meta">
+                        <div className="name">{r.name}</div>
+                        <div className="sub">{r.n} {r.n === 1 ? 'evaluación' : 'evaluaciones'} del grupo</div>
+                      </div>
+                      <ScoreBadge score={r.avg} />
+                    </Link>
+                  ))
+                : evals.map((e) => (
+                    <Link key={e.id} to={`/evaluacion/${e.id}`} className="list-item" style={{ color: 'inherit' }}>
+                      {e.photos?.[0] ? (
+                        <img src={e.photos[0]} alt="" className="thumb" />
+                      ) : (
+                        <div className="thumb" style={{ display: 'grid', placeItems: 'center', fontSize: 24 }}>🍽️</div>
+                      )}
+                      <div className="meta">
+                        <div className="name">{e.restaurantName}</div>
+                        <div className="sub">{e.userName} · {formatDate(e.createdAt)}</div>
+                      </div>
+                      <ScoreBadge score={e.finalScore} />
+                    </Link>
+                  ))}
+            </div>
+          </>
         )}
       </div>
     </>

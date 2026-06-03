@@ -3,6 +3,7 @@ import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 const NAV = [
   { to: '/', icon: '📸', label: 'Feed', end: true },
   { to: '/descubrir', icon: '🧭', label: 'Descubrir', end: false },
+  { to: '/evaluar', icon: '＋', label: 'Evaluar', end: false, create: true },
   { to: '/wishlist', icon: '📌', label: 'Lista', end: false },
   { to: '/grupos', icon: '👥', label: 'Grupos', end: false },
   { to: '/perfil', icon: '👤', label: 'Perfil', end: false },
@@ -21,9 +22,9 @@ export function Layout({ title }: { title?: string }) {
       </main>
       <nav className="bottom-nav">
         {NAV.map((n) => (
-          <NavLink key={n.to} to={n.to} end={n.end}>
+          <NavLink key={n.to} to={n.to} end={n.end} className={n.create ? 'create' : undefined}>
             <span className="icon">{n.icon}</span>
-            {n.label}
+            {!n.create && n.label}
           </NavLink>
         ))}
       </nav>

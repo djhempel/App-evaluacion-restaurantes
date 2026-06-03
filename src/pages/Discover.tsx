@@ -46,7 +46,7 @@ function PhotosGallery() {
 }
 
 export function Discover() {
-  const [tab, setTab] = useState<Tab>('mapa')
+  const [tab, setTab] = useState<Tab>('fotos')
 
   return (
     <>

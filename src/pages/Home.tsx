@@ -159,8 +159,6 @@ export function Home() {
           ))
         )}
       </div>
-
-      <button className="fab" onClick={() => navigate('/evaluar')} aria-label="Nueva evaluación">+</button>
     </>
   )
 }
