@@ -1,5 +1,4 @@
-import type { MouseEvent } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { scoreColor } from '../config/scoring'
 import type { Evaluation } from '../types'
 import { formatDate } from '../lib/utils'
@@ -17,46 +16,40 @@ export interface DishPost {
 export function DishFeedCard({ post, showAuthor }: { post: DishPost; showAuthor: boolean }) {
   const { e } = post
   const navigate = useNavigate()
-
-  function goAuthor(ev: MouseEvent) {
-    if (!showAuthor) return
-    ev.preventDefault()
-    ev.stopPropagation()
-    navigate(`/u/${e.userId}`)
-  }
+  const openEval = () => navigate(`/evaluacion/${e.id}`)
 
   return (
-    <Link to={`/evaluacion/${e.id}`} className="feed-card">
-      <div className="feed-head">
-        <div onClick={goAuthor} style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 0, cursor: showAuthor ? 'pointer' : 'default' }}>
-          {showAuthor && e.userPhoto ? (
-            <img src={e.userPhoto} alt="" className="feed-avatar" referrerPolicy="no-referrer" />
-          ) : (
-            <div className="feed-avatar placeholder">{showAuthor ? '👤' : '🕶️'}</div>
-          )}
-          <div className="meta">
-            <div className="name">{showAuthor ? e.userName : 'Anónimo'}</div>
-            <div className="sub">{e.restaurantName} · {formatDate(e.createdAt)}</div>
-          </div>
+    <article className="ig-card">
+      <div className="ig-head">
+        {showAuthor && e.userPhoto ? (
+          <img src={e.userPhoto} alt="" className="ig-avatar" referrerPolicy="no-referrer" onClick={() => navigate(`/u/${e.userId}`)} />
+        ) : (
+          <div className="ig-avatar">{showAuthor ? '👤' : '🕶️'}</div>
+        )}
+        <div className="ig-user" onClick={() => showAuthor && navigate(`/u/${e.userId}`)} style={{ cursor: showAuthor ? 'pointer' : 'default' }}>
+          <div className="ig-name">{post.emoji} {post.name}</div>
+          <div className="ig-place">{showAuthor ? `${e.userName} · ` : ''}{e.restaurantName}</div>
         </div>
-        <span className="badge" style={{ background: scoreColor(post.score) }}>⭐ {post.score.toFixed(1)}</span>
       </div>
 
       {post.photo ? (
-        <div className="feed-hero">
+        <div className="ig-media" onClick={openEval}>
           <img src={post.photo} alt="" />
-          <span className="feed-hero-score" style={{ background: scoreColor(post.score) }}>{post.emoji} {post.name}</span>
+          <span className="ig-score">⭐ {post.score.toFixed(1)}</span>
         </div>
       ) : (
-        <div className="feed-hero placeholder">{post.emoji}</div>
+        <div className="ig-media placeholder" onClick={openEval}>{post.emoji}</div>
       )}
 
-      <div className="feed-body">
-        <div className="feed-dishes">
-          <span className="feed-dish">{post.emoji} {post.name}</span>
-        </div>
-        {post.comment && <p className="feed-comment">“{post.comment}”</p>}
+      <div className="ig-dishes" style={{ paddingTop: 10 }}>
+        <span className="ig-dish">{post.emoji} {post.name} <b style={{ color: scoreColor(post.score) }}>{post.score.toFixed(1)}</b></span>
       </div>
-    </Link>
+
+      {post.comment && (
+        <div className="ig-caption">“{post.comment}”</div>
+      )}
+
+      <div className="ig-date">{formatDate(e.createdAt)}</div>
+    </article>
   )
 }

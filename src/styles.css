@@ -797,6 +797,163 @@ input[type='range']:focus {
   color: #e0245e;
 }
 
+/* --------------------------- Feed estilo Instagram --------------------- */
+.ig-card {
+  background: var(--card);
+  border-radius: 16px;
+  border: 1px solid var(--hairline);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+  margin-bottom: 18px;
+  animation: rise 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.ig-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+}
+.ig-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: #f0e6db;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  font-size: 17px;
+}
+.ig-user {
+  flex: 1;
+  min-width: 0;
+  line-height: 1.2;
+}
+.ig-name {
+  font-weight: 700;
+  font-size: 13.5px;
+}
+.ig-place {
+  font-size: 11.5px;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ig-media {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  background: #f0e6db;
+  cursor: pointer;
+  user-select: none;
+}
+.ig-media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.ig-media.placeholder {
+  display: grid;
+  place-items: center;
+  font-size: 72px;
+  background: linear-gradient(135deg, #fff3e6, #ffe2c4);
+}
+.ig-media .ig-score {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  font-weight: 800;
+  font-size: 13px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  backdrop-filter: blur(4px);
+}
+.ig-heart-pop {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 96px;
+  opacity: 0;
+  pointer-events: none;
+  color: #fff;
+  filter: drop-shadow(0 2px 10px rgba(0, 0, 0, 0.4));
+}
+.ig-heart-pop.show {
+  animation: heartPop 0.8s ease;
+}
+@keyframes heartPop {
+  0% { opacity: 0; transform: scale(0.4); }
+  20% { opacity: 1; transform: scale(1.1); }
+  40% { transform: scale(0.95); }
+  60% { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(1); }
+}
+.ig-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 12px 4px;
+}
+.ig-act {
+  background: none;
+  border: none;
+  font-size: 23px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+  transition: transform 0.12s ease;
+}
+.ig-act:active {
+  transform: scale(0.8);
+}
+.ig-likes {
+  font-weight: 700;
+  font-size: 13.5px;
+  padding: 2px 12px 0;
+}
+.ig-caption {
+  padding: 4px 12px 0;
+  font-size: 14px;
+  line-height: 1.4;
+}
+.ig-caption .u {
+  font-weight: 700;
+  margin-right: 5px;
+}
+.ig-dishes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px 12px 0;
+}
+.ig-dish {
+  font-size: 12px;
+  font-weight: 600;
+  background: #fbf1e5;
+  border: 1px solid var(--hairline);
+  color: #6e6053;
+  padding: 3px 9px;
+  border-radius: 999px;
+}
+.ig-link {
+  display: block;
+  padding: 6px 12px 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+.ig-date {
+  padding: 6px 12px 12px;
+  font-size: 10.5px;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
 /* Scroll horizontal (platos top) */
 .hscroll {
   display: flex;

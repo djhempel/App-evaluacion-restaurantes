@@ -1,9 +1,8 @@
-import type { MouseEvent } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { FOOD_CRITERIA, scoreColor } from '../config/scoring'
 import type { Evaluation } from '../types'
 import { formatDate } from '../lib/utils'
-import { ScoreBadge } from './ScoreBadge'
 
 function heroPhoto(e: Evaluation): string | undefined {
   if (e.photos?.[0]) return e.photos[0]
@@ -43,67 +42,89 @@ export function FeedCard({
   const hero = heroPhoto(e)
   const dishes = topDishes(e)
   const navigate = useNavigate()
+  const lastTap = useRef(0)
+  const tapTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [pop, setPop] = useState(false)
 
-  function goAuthor(ev: MouseEvent) {
-    if (!showAuthor) return
-    ev.preventDefault()
-    ev.stopPropagation()
-    navigate(`/u/${e.userId}`)
+  function openEval() {
+    navigate(`/evaluacion/${e.id}`)
   }
 
-  function like(ev: MouseEvent) {
-    ev.preventDefault()
-    ev.stopPropagation()
-    onToggleLike?.(e.id, !liked)
+  function onMediaTap() {
+    const now = Date.now()
+    if (now - lastTap.current < 280) {
+      // Doble tap → like
+      if (tapTimer.current) clearTimeout(tapTimer.current)
+      if (!liked) onToggleLike?.(e.id, true)
+      setPop(true)
+      setTimeout(() => setPop(false), 800)
+    } else {
+      tapTimer.current = setTimeout(openEval, 280)
+    }
+    lastTap.current = now
   }
 
   return (
-    <Link to={`/evaluacion/${e.id}`} className="feed-card">
-      <div className="feed-head">
-        <div onClick={goAuthor} style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 0, cursor: showAuthor ? 'pointer' : 'default' }}>
-          {showAuthor && e.userPhoto ? (
-            <img src={e.userPhoto} alt="" className="feed-avatar" referrerPolicy="no-referrer" />
-          ) : (
-            <div className="feed-avatar placeholder">{showAuthor ? '👤' : '🕶️'}</div>
-          )}
-          <div className="meta">
-            <div className="name">{showAuthor ? e.userName : 'Anónimo'}</div>
-            <div className="sub">{e.restaurantName} · {formatDate(e.createdAt)}</div>
-          </div>
+    <article className="ig-card">
+      <div className="ig-head">
+        {showAuthor && e.userPhoto ? (
+          <img src={e.userPhoto} alt="" className="ig-avatar" referrerPolicy="no-referrer" onClick={() => showAuthor && navigate(`/u/${e.userId}`)} />
+        ) : (
+          <div className="ig-avatar">{showAuthor ? '👤' : '🕶️'}</div>
+        )}
+        <div className="ig-user" onClick={() => showAuthor && navigate(`/u/${e.userId}`)} style={{ cursor: showAuthor ? 'pointer' : 'default' }}>
+          <div className="ig-name">{showAuthor ? e.userName : 'Anónimo'}</div>
+          <div className="ig-place">{e.restaurantName}</div>
         </div>
-        <ScoreBadge score={e.finalScore} />
       </div>
 
       {hero ? (
-        <div className="feed-hero">
+        <div className="ig-media" onClick={onMediaTap}>
           <img src={hero} alt="" />
-          <span className="feed-hero-score" style={{ background: scoreColor(e.finalScore) }}>
-            ⭐ {e.finalScore.toFixed(1)}
-          </span>
+          <span className="ig-score">⭐ {e.finalScore.toFixed(1)}</span>
+          <div className={`ig-heart-pop ${pop ? 'show' : ''}`}>❤️</div>
         </div>
       ) : (
-        <div className="feed-hero placeholder">🍽️</div>
+        <div className="ig-media placeholder" onClick={onMediaTap}>
+          🍽️
+          <div className={`ig-heart-pop ${pop ? 'show' : ''}`}>❤️</div>
+        </div>
       )}
 
-      <div className="feed-body">
-        {dishes.length > 0 && (
-          <div className="feed-dishes">
-            {dishes.map((d, i) => (
-              <span className="feed-dish" key={i}>
-                {d.emoji} {d.name}
-                <b style={{ color: scoreColor(d.score) }}> {d.score.toFixed(1)}</b>
-              </span>
-            ))}
-          </div>
-        )}
-        {e.comment && <p className="feed-comment">“{e.comment}”</p>}
-        <div className="feed-actions">
-          <button type="button" className={`feed-act ${liked ? 'liked' : ''}`} onClick={like}>
-            {liked ? '❤️' : '🤍'} {likeCount > 0 ? likeCount : ''}
-          </button>
-          <span className="feed-act">💬 {commentCount > 0 ? commentCount : ''}</span>
-        </div>
+      <div className="ig-actions">
+        <button type="button" className="ig-act" onClick={() => onToggleLike?.(e.id, !liked)} aria-label="Me gusta">
+          {liked ? '❤️' : '🤍'}
+        </button>
+        <button type="button" className="ig-act" onClick={openEval} aria-label="Comentar">💬</button>
+        <button type="button" className="ig-act" onClick={openEval} aria-label="Ver" style={{ marginLeft: 'auto' }}>›</button>
       </div>
-    </Link>
+
+      {likeCount > 0 && <div className="ig-likes">{likeCount} {likeCount === 1 ? 'Me gusta' : 'Me gusta'}</div>}
+
+      {dishes.length > 0 && (
+        <div className="ig-dishes">
+          {dishes.map((d, i) => (
+            <span className="ig-dish" key={i}>
+              {d.emoji} {d.name} <b style={{ color: scoreColor(d.score) }}>{d.score.toFixed(1)}</b>
+            </span>
+          ))}
+        </div>
+      )}
+
+      {e.comment && (
+        <div className="ig-caption">
+          {showAuthor && <span className="u">{e.userName}</span>}
+          “{e.comment}”
+        </div>
+      )}
+
+      {commentCount > 0 && (
+        <div className="ig-link" onClick={openEval} style={{ cursor: 'pointer' }}>
+          Ver {commentCount === 1 ? 'el comentario' : `los ${commentCount} comentarios`}
+        </div>
+      )}
+
+      <div className="ig-date">{formatDate(e.createdAt)}</div>
+    </article>
   )
 }
