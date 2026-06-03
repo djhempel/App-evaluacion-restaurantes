@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { scoreColor } from '../config/scoring'
-import type { Evaluation } from '../types'
+import type { EvalComment, Evaluation } from '../types'
 import { formatDate } from '../lib/utils'
 import { Carousel, buildEvalSlides } from './Carousel'
 
@@ -10,20 +10,31 @@ export function FeedCard({
   showAuthor,
   liked = false,
   likeCount = 0,
-  commentCount = 0,
+  comments = [],
   onToggleLike,
+  onAddComment,
 }: {
   e: Evaluation
   showAuthor: boolean
   liked?: boolean
   likeCount?: number
-  commentCount?: number
+  comments?: EvalComment[]
   onToggleLike?: (evalId: string, liked: boolean) => void
+  onAddComment?: (evalId: string, text: string) => void
 }) {
   const navigate = useNavigate()
   const lastTap = useRef(0)
   const [pop, setPop] = useState(false)
+  const [text, setText] = useState('')
   const slides = buildEvalSlides(e)
+  const commentCount = comments.length
+  const preview = comments.slice(-2)
+
+  function submit() {
+    if (!text.trim()) return
+    onAddComment?.(e.id, text.trim())
+    setText('')
+  }
 
   function openEval() {
     navigate(`/evaluacion/${e.id}`)
@@ -81,13 +92,30 @@ export function FeedCard({
         </div>
       )}
 
-      {commentCount > 0 && (
+      {commentCount > 2 && (
         <div className="ig-link" onClick={openEval} style={{ cursor: 'pointer' }}>
-          Ver {commentCount === 1 ? 'el comentario' : `los ${commentCount} comentarios`}
+          Ver los {commentCount} comentarios
         </div>
       )}
 
+      {preview.map((c) => (
+        <div className="ig-caption" key={c.id}>
+          <span className="u">{c.userName}</span>
+          {c.text}
+        </div>
+      ))}
+
       <div className="ig-date">{formatDate(e.createdAt)}</div>
+
+      <div className="ig-composer">
+        <input
+          value={text}
+          onChange={(ev) => setText(ev.target.value)}
+          placeholder="Agrega un comentario…"
+          onKeyDown={(ev) => ev.key === 'Enter' && submit()}
+        />
+        <button type="button" onClick={submit} disabled={!text.trim()}>Publicar</button>
+      </div>
     </article>
   )
 }

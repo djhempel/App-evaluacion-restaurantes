@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
-import { listAllComments, listAllEvaluations, listAllLikes, listFriendUids, setLike } from '../lib/data'
+import { addComment, listAllComments, listAllEvaluations, listAllLikes, listFriendUids, setLike } from '../lib/data'
 import { FOOD_CRITERIA } from '../config/scoring'
-import type { Evaluation } from '../types'
+import type { EvalComment, Evaluation } from '../types'
 import { Spinner } from '../components/Spinner'
 import { FeedCard } from '../components/FeedCard'
 import { DishFeedCard, type DishPost } from '../components/DishFeedCard'
@@ -17,7 +17,7 @@ export function Home() {
 
   const [likeCounts, setLikeCounts] = useState<Map<string, number>>(new Map())
   const [myLikes, setMyLikes] = useState<Set<string>>(new Set())
-  const [commentCounts, setCommentCounts] = useState<Map<string, number>>(new Map())
+  const [commentsByEval, setCommentsByEval] = useState<Map<string, EvalComment[]>>(new Map())
 
   useEffect(() => {
     if (!user) return
@@ -31,11 +31,17 @@ export function Home() {
           lc.set(l.evalId, (lc.get(l.evalId) ?? 0) + 1)
           if (l.uid === user.uid) mine.add(l.evalId)
         }
-        const cc = new Map<string, number>()
-        for (const c of comments) cc.set(c.evalId, (cc.get(c.evalId) ?? 0) + 1)
+        const cmap = new Map<string, EvalComment[]>()
+        for (const c of comments) {
+          const arr = cmap.get(c.evalId) ?? []
+          arr.push(c)
+          cmap.set(c.evalId, arr)
+        }
+        for (const arr of cmap.values())
+          arr.sort((a, b) => (a.createdAt?.toMillis() ?? 0) - (b.createdAt?.toMillis() ?? 0))
         setLikeCounts(lc)
         setMyLikes(mine)
-        setCommentCounts(cc)
+        setCommentsByEval(cmap)
       })
       .catch(() => setEvals([]))
   }, [user])
@@ -54,6 +60,24 @@ export function Home() {
       return n
     })
     setLike(evalId, user.uid, liked).catch(() => undefined)
+  }
+
+  function addCommentInline(evalId: string, text: string) {
+    if (!user || !text.trim()) return
+    const c: EvalComment = {
+      id: crypto.randomUUID(),
+      evalId,
+      uid: user.uid,
+      userName: user.displayName ?? 'Anónimo',
+      userPhoto: user.photoURL ?? '',
+      text: text.trim(),
+    }
+    setCommentsByEval((prev) => {
+      const n = new Map(prev)
+      n.set(evalId, [...(n.get(evalId) ?? []), c])
+      return n
+    })
+    addComment(evalId, user, text.trim()).catch(() => undefined)
   }
 
   // Feed = amigos (y tus propias publicaciones).
@@ -128,8 +152,9 @@ export function Home() {
               showAuthor={true}
               liked={myLikes.has(e.id)}
               likeCount={likeCounts.get(e.id) ?? 0}
-              commentCount={commentCounts.get(e.id) ?? 0}
+              comments={commentsByEval.get(e.id) ?? []}
               onToggleLike={toggleLike}
+              onAddComment={addCommentInline}
             />
           ))
         )}

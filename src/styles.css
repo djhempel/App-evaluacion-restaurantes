@@ -947,11 +947,43 @@ input[type='range']:focus {
   color: var(--muted);
 }
 .ig-date {
-  padding: 6px 12px 12px;
+  padding: 6px 12px 10px;
   font-size: 10.5px;
   letter-spacing: 0.4px;
   text-transform: uppercase;
   color: var(--muted);
+}
+.ig-composer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-top: 1px solid var(--line);
+  padding: 8px 12px;
+}
+.ig-composer input {
+  flex: 1;
+  border: none;
+  background: none;
+  padding: 6px 0;
+  font-size: 14px;
+  box-shadow: none;
+}
+.ig-composer input:focus {
+  outline: none;
+  box-shadow: none;
+}
+.ig-composer button {
+  background: none;
+  border: none;
+  color: var(--orange);
+  font-weight: 800;
+  font-size: 14px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.ig-composer button:disabled {
+  opacity: 0.4;
+  cursor: default;
 }
 
 /* ------------------------------- Carrusel ------------------------------ */
