@@ -39,7 +39,7 @@ interface RedRow {
   dist: number | null
 }
 
-export function Explore() {
+export function Explore({ embedded = false }: { embedded?: boolean }) {
   const { user } = useAuth()
   const toast = useToast()
   const navigate = useNavigate()
@@ -222,10 +222,12 @@ export function Explore() {
 
   return (
     <>
-      <header className="app-header">
-        <h1>Explorar 🧭</h1>
-      </header>
-      <div className="app-main">
+      {!embedded && (
+        <header className="app-header">
+          <h1>Explorar 🧭</h1>
+        </header>
+      )}
+      <div className={embedded ? '' : 'app-main'}>
         {/* Ámbito */}
         <div className="row" style={{ gap: 6, marginBottom: 12, flexWrap: 'wrap' }}>
           <button className={`btn small ${scope === 'public' ? '' : 'secondary'}`} style={{ flex: 1 }} onClick={() => setScope('public')}>🌐 Todos</button>

@@ -20,7 +20,7 @@ const RADII = [
   { label: '5 km', m: 5000 },
 ]
 
-export function RestaurantList() {
+export function RestaurantList({ embedded = false }: { embedded?: boolean }) {
   const navigate = useNavigate()
   const { user } = useAuth()
   const toast = useToast()
@@ -102,12 +102,14 @@ export function RestaurantList() {
 
   return (
     <>
-      <header className="app-header">
-        <h1>Restaurantes</h1>
-      </header>
-      <div className="app-main">
+      {!embedded && (
+        <header className="app-header">
+          <h1>Restaurantes</h1>
+        </header>
+      )}
+      <div className={embedded ? '' : 'app-main'}>
         {/* Conmutador Mis lugares / Descubrir */}
-        <div className="row" style={{ marginBottom: 14 }}>
+        <div className="row" style={{ marginBottom: 14, display: embedded ? 'none' : 'flex' }}>
           <button
             className={`btn small ${mode === 'mine' ? '' : 'secondary'}`}
             style={{ flex: 1 }}
