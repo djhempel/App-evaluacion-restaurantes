@@ -2,10 +2,9 @@ import { useEffect, useState, type ChangeEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { useToast } from '../components/Toast'
-import { listMyEvaluations } from '../lib/data'
+import { listFriendUids, listMyEvaluations } from '../lib/data'
 import { uploadImage } from '../lib/storage'
-import { CRITERIA, scoreColor } from '../config/scoring'
-import { FOOD_CRITERIA } from '../config/scoring'
+import { scoreColor, FOOD_CRITERIA } from '../config/scoring'
 import type { Evaluation } from '../types'
 
 const AVATAR_STYLES = ['fun-emoji', 'adventurer', 'avataaars', 'bottts', 'thumbs', 'lorelei', 'micah', 'notionists']
@@ -16,16 +15,27 @@ function cellPhoto(e: Evaluation): string | undefined {
   return undefined
 }
 
+const QUICK = [
+  { to: '/ranking', icon: '🏆', label: 'Ranking' },
+  { to: '/wishlist', icon: '📌', label: 'Por visitar' },
+  { to: '/grupos', icon: '👥', label: 'Grupos' },
+  { to: '/amigos', icon: '🤝', label: 'Amigos' },
+  { to: '/estadisticas', icon: '📊', label: 'Estadísticas' },
+  { to: '/restaurantes/nuevo', icon: '🍴', label: 'Crear lugar' },
+]
+
 export function Profile() {
   const { user, logout, photoURL, updateAvatar } = useAuth()
   const toast = useToast()
   const [evals, setEvals] = useState<Evaluation[]>([])
+  const [friends, setFriends] = useState(0)
   const [editingAvatar, setEditingAvatar] = useState(false)
   const [avatarBusy, setAvatarBusy] = useState(false)
 
   useEffect(() => {
     if (!user) return
     listMyEvaluations(user.uid).then(setEvals).catch(() => setEvals([]))
+    listFriendUids(user.uid).then((u) => setFriends(u.length)).catch(() => setFriends(0))
   }, [user])
 
   const avg = evals.length > 0 ? evals.reduce((s, e) => s + e.finalScore, 0) / evals.length : 0
@@ -66,35 +76,44 @@ export function Profile() {
   return (
     <>
       <header className="app-header">
-        <h1>Perfil</h1>
+        <h1>{user?.displayName?.split(' ')[0] ?? 'Perfil'}</h1>
+        <button className="btn ghost" onClick={() => logout()} title="Cerrar sesión" style={{ fontSize: 20 }}>⎋</button>
       </header>
       <div className="app-main">
-        <div className="card" style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+        {/* Cabecera tipo Instagram */}
+        <div className="ig-prof">
           <button
             type="button"
             onClick={() => setEditingAvatar((v) => !v)}
-            style={{ position: 'relative', border: 'none', background: 'none', padding: 0, cursor: 'pointer' }}
+            style={{ position: 'relative', border: 'none', background: 'none', padding: 0, cursor: 'pointer', flexShrink: 0 }}
             aria-label="Cambiar foto"
           >
             {photoURL ? (
-              <img src={photoURL} alt="" style={{ width: 76, height: 76, borderRadius: '50%', objectFit: 'cover', background: '#f0e6db' }} referrerPolicy="no-referrer" />
+              <img src={photoURL} alt="" style={{ width: 84, height: 84, borderRadius: '50%', objectFit: 'cover', background: '#f0e6db' }} referrerPolicy="no-referrer" />
             ) : (
-              <div style={{ width: 76, height: 76, borderRadius: '50%', display: 'grid', placeItems: 'center', fontSize: 36, background: '#f0e6db' }}>👤</div>
+              <div style={{ width: 84, height: 84, borderRadius: '50%', display: 'grid', placeItems: 'center', fontSize: 40, background: '#f0e6db' }}>👤</div>
             )}
-            <span style={{ position: 'absolute', right: -2, bottom: -2, width: 26, height: 26, borderRadius: '50%', background: 'var(--orange-grad)', color: '#fff', display: 'grid', placeItems: 'center', fontSize: 13, boxShadow: '0 2px 6px rgba(232,93,4,.5)', border: '2px solid #fff' }}>📷</span>
+            <span style={{ position: 'absolute', right: 0, bottom: 0, width: 26, height: 26, borderRadius: '50%', background: 'var(--orange-grad)', color: '#fff', display: 'grid', placeItems: 'center', fontSize: 13, boxShadow: '0 2px 6px rgba(232,93,4,.5)', border: '2px solid #fff' }}>📷</span>
           </button>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <h2 style={{ margin: '0 0 2px' }}>{user?.displayName}</h2>
-            <p className="muted" style={{ margin: 0, fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis' }}>{user?.email}</p>
-            <div style={{ display: 'flex', gap: 16, marginTop: 8 }}>
-              <div><b style={{ fontFamily: 'var(--display)' }}>{evals.length}</b> <span className="muted" style={{ fontSize: 12 }}>evals</span></div>
-              <div><b style={{ fontFamily: 'var(--display)' }}>{evals.length ? avg.toFixed(1) : '—'}</b> <span className="muted" style={{ fontSize: 12 }}>promedio</span></div>
-            </div>
+          <div className="ig-stats">
+            <div className="ig-stat"><b>{evals.length}</b><span>Publicaciones</span></div>
+            <div className="ig-stat"><b>{friends}</b><span>Amigos</span></div>
+            <div className="ig-stat"><b>{evals.length ? avg.toFixed(1) : '—'}</b><span>Promedio</span></div>
           </div>
         </div>
 
+        <div className="ig-bio">
+          <div className="nm">{user?.displayName}</div>
+          <div className="muted" style={{ fontSize: 13 }}>{user?.email}</div>
+        </div>
+
+        <div className="row" style={{ gap: 8, marginTop: 10 }}>
+          <button className="btn secondary small" style={{ flex: 1 }} onClick={() => setEditingAvatar((v) => !v)}>✏️ Editar foto</button>
+          <Link className="btn secondary small" style={{ flex: 1 }} to="/evaluar">⭐ Evaluar</Link>
+        </div>
+
         {editingAvatar && (
-          <div className="card">
+          <div className="card" style={{ marginTop: 12 }}>
             <div className="section-title" style={{ marginTop: 0 }}>Tu foto de perfil</div>
             <label className="btn secondary block" style={{ cursor: avatarBusy ? 'default' : 'pointer', opacity: avatarBusy ? 0.6 : 1, marginBottom: 12 }}>
               📷 Subir una foto
@@ -105,7 +124,7 @@ export function Profile() {
               {avatarOptions.map((url) => (
                 <button key={url} type="button" onClick={() => chooseAvatar(url)} disabled={avatarBusy}
                   style={{ border: photoURL === url ? '2px solid var(--orange)' : '1px solid var(--line)', borderRadius: '50%', padding: 0, background: '#fff', cursor: 'pointer' }}>
-                  <img src={url} alt="" style={{ width: 56, height: 56, borderRadius: '50%', display: 'block' }} />
+                  <img src={url} alt="" style={{ width: 54, height: 54, borderRadius: '50%', display: 'block' }} />
                 </button>
               ))}
             </div>
@@ -113,8 +132,20 @@ export function Profile() {
           </div>
         )}
 
-        {/* Grilla de evaluaciones */}
-        <div className="section-title">Tus evaluaciones</div>
+        {/* Accesos rápidos */}
+        <div className="hscroll" style={{ marginTop: 14 }}>
+          {QUICK.map((it) => (
+            <Link key={it.to} to={it.to} className="dish-card" style={{ flex: '0 0 92px', textAlign: 'center', textDecoration: 'none' }}>
+              <div style={{ fontSize: 26, paddingTop: 12 }}>{it.icon}</div>
+              <div className="info" style={{ paddingTop: 4 }}>
+                <div className="dn" style={{ fontSize: 12 }}>{it.label}</div>
+              </div>
+            </Link>
+          ))}
+        </div>
+
+        {/* Grilla de publicaciones */}
+        <div className="ig-tabbar">▦ PUBLICACIONES</div>
         {evals.length === 0 ? (
           <div className="empty" style={{ padding: 28 }}>
             <div className="big">📸</div>
@@ -133,42 +164,6 @@ export function Profile() {
             })}
           </div>
         )}
-
-        <div className="section-title">Tu actividad</div>
-        <div className="card" style={{ padding: 0 }}>
-          {[
-            { to: '/estadisticas', icon: '📊', label: 'Estadísticas' },
-            { to: '/ranking', icon: '🏆', label: '¿Dónde ir? · Ranking' },
-            { to: '/wishlist', icon: '📌', label: 'Por visitar' },
-            { to: '/grupos', icon: '👥', label: 'Grupos' },
-            { to: '/amigos', icon: '🤝', label: 'Amigos' },
-            { to: '/restaurantes/nuevo', icon: '➕', label: 'Crear restaurante' },
-          ].map((it) => (
-            <Link key={it.to} to={it.to} className="list-item" style={{ color: 'inherit', padding: 16 }}>
-              <span style={{ fontSize: 22 }}>{it.icon}</span>
-              <div className="meta"><div className="name">{it.label}</div></div>
-              <span style={{ color: 'var(--muted)' }}>›</span>
-            </Link>
-          ))}
-        </div>
-
-        <div className="section-title">Cómo se calcula la nota</div>
-        <div className="card">
-          {CRITERIA.map((c) => (
-            <div key={c.key} className="list-item">
-              <span style={{ fontSize: 22 }}>{c.emoji}</span>
-              <div className="meta"><div className="name">{c.label}</div></div>
-              <span className="chip">{Math.round(c.weight * 100)}%</span>
-            </div>
-          ))}
-          <p className="hint" style={{ marginBottom: 0 }}>
-            Si marcas un criterio como “No aplica”, su peso se reparte entre los demás.
-          </p>
-        </div>
-
-        <button className="btn secondary block" onClick={() => logout()} style={{ marginTop: 8 }}>
-          Cerrar sesión
-        </button>
       </div>
     </>
   )

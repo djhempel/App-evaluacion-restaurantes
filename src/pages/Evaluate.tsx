@@ -9,7 +9,6 @@ import { ScoreBadge } from '../components/ScoreBadge'
 import { PhotoUploader } from '../components/PhotoUploader'
 import {
   createEvaluation,
-  createRestaurant,
   getEvaluation,
   getRestaurant,
   listMyGroups,
@@ -23,7 +22,7 @@ import {
   computeFinalScore,
   ratedCount,
 } from '../config/scoring'
-import { fetchPlaceDetails, getCurrentPosition, hasGooglePlaces, searchPlaces, type PlaceResult } from '../lib/utils'
+import { getCurrentPosition, hasGooglePlaces, searchPlaces, type PlaceResult } from '../lib/utils'
 import type { DishEntries, Group, RatedDish, Restaurant, Scores, Visibility } from '../types'
 
 const FOOD_KEYS = FOOD_CRITERIA.map((c) => c.key)
@@ -48,7 +47,6 @@ export function Evaluate() {
   const [pickQuery, setPickQuery] = useState('')
   const [pickResults, setPickResults] = useState<PlaceResult[]>([])
   const [picking, setPicking] = useState(false)
-  const [creatingPlace, setCreatingPlace] = useState(false)
 
   const [dishEntries, setDishEntries] = useState<DishEntries>(emptyDishEntries)
   // Solo se usan lugar y atención; el resto se calcula desde los platos.
@@ -105,46 +103,10 @@ export function Evaluate() {
     setPickResults([])
   }
 
-  async function selectGooglePlace(p: PlaceResult) {
-    if (!user) return
-    setCreatingPlace(true)
-    try {
-      const g = p.placeId ? await fetchPlaceDetails(p.placeId) : null
-      const newId = await createRestaurant({
-        name: p.name,
-        cuisine: '',
-        address: p.address ?? '',
-        menuUrl: '',
-        lat: p.lat ?? null,
-        lng: p.lng ?? null,
-        photos: [],
-        menuPhotos: [],
-        dishes: [],
-        createdBy: user.uid,
-        createdByName: user.displayName ?? 'Anónimo',
-        googleRating: g?.rating ?? p.rating ?? null,
-        googleRatingCount: g?.userRatingCount ?? p.userRatingCount ?? null,
-        googlePlaceId: p.placeId ?? null,
-        googleType: g?.type ?? p.type ?? null,
-        googlePhone: g?.phone ?? null,
-        googlePhoneIntl: g?.phoneIntl ?? null,
-        googleWebsite: g?.website ?? null,
-        googleMapsUri: g?.mapsUri ?? null,
-        googlePriceLevel: g?.priceLevel ?? null,
-        googleHours: g?.hours ?? null,
-        googleSummary: g?.summary ?? null,
-        googleReviews: g?.reviews ?? null,
-      })
-      setPickQuery('')
-      setPickResults([])
-      setRestaurantId(newId)
-      toast('Restaurante creado ✓')
-    } catch (e) {
-      console.error(e)
-      toast('No se pudo crear el restaurante')
-    } finally {
-      setCreatingPlace(false)
-    }
+  // Crear un restaurante nuevo pasa por el formulario completo (tipo, fotos, menú…)
+  // y vuelve a Evaluar con ese restaurante seleccionado.
+  function selectGooglePlace(p: PlaceResult) {
+    navigate('/restaurantes/nuevo', { state: { place: p, fromEvaluate: true } })
   }
 
   useEffect(() => {
@@ -348,8 +310,6 @@ export function Evaluate() {
               />
             </label>
 
-            {creatingPlace && <p className="hint">Creando restaurante…</p>}
-
             {/* Existentes que calzan */}
             {(restaurants ?? [])
               .filter((r) => r.name.toLowerCase().includes(pickQuery.trim().toLowerCase()))
@@ -385,7 +345,6 @@ export function Evaluate() {
                   type="button"
                   className="list-item"
                   onClick={() => selectGooglePlace(p)}
-                  disabled={creatingPlace}
                   style={{ width: '100%', background: 'none', border: 'none', textAlign: 'left', cursor: 'pointer' }}
                 >
                   <span style={{ fontSize: 20 }}>📍</span>
@@ -397,7 +356,7 @@ export function Evaluate() {
                 </button>
               ))}
 
-            <button className="btn ghost small" style={{ marginTop: 6 }} onClick={() => navigate('/restaurantes/nuevo')}>
+            <button className="btn ghost small" style={{ marginTop: 6 }} onClick={() => navigate('/restaurantes/nuevo', { state: { fromEvaluate: true } })}>
               + Crear manualmente
             </button>
           </div>

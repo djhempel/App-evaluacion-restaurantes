@@ -298,7 +298,8 @@ export function RestaurantForm() {
       } else {
         const newId = await createRestaurant(payload)
         toast('Restaurante creado 🎉')
-        navigate(`/restaurantes/${newId}`, { replace: true })
+        const fromEvaluate = (location.state as { fromEvaluate?: boolean } | null)?.fromEvaluate
+        navigate(fromEvaluate ? `/evaluar?restaurant=${newId}` : `/restaurantes/${newId}`, { replace: true })
       }
     } catch (e) {
       console.error(e)
