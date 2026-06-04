@@ -79,8 +79,6 @@ async function callGemini(parts: Part[]): Promise<ParsedDish[]> {
     const status = res?.status
     const detail = res ? await res.text().catch(() => '') : ''
     console.warn('[gemini] error', status, detail)
-    if (status === 429) throw new Error('Límite de uso de Gemini (429). Espera un minuto o sube el tope de cuota.')
-    // Intenta mostrar el motivo real (ej. "API key not valid", "model not found").
     let reason = ''
     try {
       reason = (JSON.parse(detail) as { error?: { message?: string } })?.error?.message ?? ''
