@@ -80,25 +80,24 @@ export function Evaluate() {
     listMyGroups(user.uid).then(setMyGroups).catch(() => setMyGroups([]))
   }, [user])
 
-  // Busca lugares (Google/OSM) para el selector.
-  useEffect(() => {
+  // Google solo cuando el usuario lo pide (no en cada tecla, así no se traba).
+  async function searchGoogle() {
     const q = pickQuery.trim()
-    if (q.length < 3) {
-      setPickResults([])
-      return
-    }
+    if (q.length < 3) return
     setPicking(true)
-    const t = setTimeout(() => {
-      searchPlaces(q)
-        .then(setPickResults)
-        .catch(() => setPickResults([]))
-        .finally(() => setPicking(false))
-    }, 500)
-    return () => clearTimeout(t)
-  }, [pickQuery])
+    try {
+      setPickResults(await searchPlaces(q))
+    } catch {
+      setPickResults([])
+    } finally {
+      setPicking(false)
+    }
+  }
 
   function selectExisting(r: Restaurant) {
+    setRestaurant(r) // muestra al instante (sin esperar la red)
     setRestaurantId(r.id)
+    if (r.lat != null && r.lng != null && !loc) setLoc({ lat: r.lat, lng: r.lng })
     setPickQuery('')
     setPickResults([])
   }
@@ -304,16 +303,16 @@ export function Evaluate() {
               <span>¿Dónde comiste?</span>
               <input
                 value={pickQuery}
-                onChange={(e) => setPickQuery(e.target.value)}
-                placeholder="Busca el restaurante…"
+                onChange={(e) => { setPickQuery(e.target.value); setPickResults([]) }}
+                placeholder="Busca entre tus restaurantes…"
                 autoComplete="off"
               />
             </label>
 
-            {/* Existentes que calzan */}
+            {/* Existentes que calzan (instantáneo) */}
             {(restaurants ?? [])
               .filter((r) => r.name.toLowerCase().includes(pickQuery.trim().toLowerCase()))
-              .slice(0, 6)
+              .slice(0, 8)
               .map((r) => (
                 <button
                   key={r.id}
@@ -335,8 +334,12 @@ export function Evaluate() {
                 </button>
               ))}
 
-            {/* Resultados de Google (no registrados) */}
-            {picking && <p className="hint">Buscando en {hasGooglePlaces ? 'Google' : 'OpenStreetMap'}…</p>}
+            {/* Buscar en Google solo si lo pide (no en cada tecla) */}
+            {pickQuery.trim().length >= 3 && pickResults.length === 0 && (
+              <button className="btn secondary block" style={{ marginTop: 6 }} disabled={picking} onClick={searchGoogle}>
+                {picking ? 'Buscando…' : `🔎 Buscar "${pickQuery.trim()}" en ${hasGooglePlaces ? 'Google' : 'OpenStreetMap'}`}
+              </button>
+            )}
             {pickResults
               .filter((p) => !p.placeId || !(restaurants ?? []).some((r) => r.googlePlaceId === p.placeId))
               .map((p, i) => (
