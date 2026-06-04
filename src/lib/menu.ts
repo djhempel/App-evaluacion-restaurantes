@@ -7,20 +7,30 @@ export interface ParsedDish {
 }
 
 const GEMINI_KEY = import.meta.env.VITE_GEMINI_API_KEY as string | undefined
-const MODEL = 'gemini-2.0-flash'
+const MODEL = 'gemini-2.5-flash'
 const ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`
 const CATEGORIES = DISH_CATEGORIES.map((c) => c.value)
 
 export const hasMenuAI = Boolean(GEMINI_KEY)
 
-const PROMPT = `Eres un asistente que extrae la CARTA de un restaurante desde una imagen o PDF del menú.
-Devuelve SOLO los platos/bebidas que se pueden pedir.
-Reglas:
-- Cada item: "name" (nombre del plato, sin la descripción larga),
-  "category" (una de: ${CATEGORIES.join(', ')}) y "price" (entero en la moneda local, sin símbolos ni puntos de miles; omite si no aparece).
-- Clasifica con sentido: aperitivos/tablas = entrada; principales = fondo; vinos/tragos/jugos = bebida;
-  guarniciones = acompanamiento; pan/cortesía = pan; dulces = postre; si no calza, "otro".
-- No inventes platos ni precios. No incluyas encabezados de sección como si fueran platos.`
+const PROMPT = `Eres un experto en transcribir la CARTA de un restaurante desde una imagen o PDF del menú.
+Extrae TODOS los platos y bebidas que se pueden pedir, recorriendo TODA la imagen (todas las columnas y secciones).
+
+Para cada item devuelve:
+- "name": el nombre del plato tal como aparece (sin la descripción larga de ingredientes).
+- "category": una de exactamente estas (${CATEGORIES.join(', ')}).
+- "price": el precio como número entero en la moneda local, SIN símbolos ni puntos de miles (ej. 12900). Omítelo solo si el plato no tiene precio visible.
+
+Cómo clasificar:
+- pan = pan de cortesía, couvert, snacks iniciales.
+- entrada = entradas, aperitivos, tablas, ensaladas para compartir, sopas.
+- fondo = platos principales / de fondo.
+- postre = postres y dulces.
+- bebida = vinos, tragos, cócteles, jugos, bebidas, cafetería.
+- acompanamiento = guarniciones / adicionales.
+- otro = si no calza en ninguna.
+
+Reglas: NO inventes platos ni precios. NO incluyas los títulos de sección (ej. "ENTRADAS", "BEBIDAS") como si fueran platos. Si una sección tiene varios platos, devuélvelos todos.`
 
 interface Part {
   text?: string
@@ -33,6 +43,7 @@ async function callGemini(parts: Part[]): Promise<ParsedDish[]> {
     contents: [{ parts }],
     generationConfig: {
       temperature: 0,
+      thinkingConfig: { thinkingBudget: 0 },
       responseMimeType: 'application/json',
       responseSchema: {
         type: 'OBJECT',
@@ -76,6 +87,7 @@ async function callGemini(parts: Part[]): Promise<ParsedDish[]> {
   const text: string | undefined = data?.candidates?.[0]?.content?.parts?.[0]?.text
   if (!text) throw new Error('Sin respuesta de la IA')
   const parsed = JSON.parse(text) as { dishes?: ParsedDish[] }
+  console.info('[gemini] platos detectados:', parsed.dishes?.length ?? 0)
   return (parsed.dishes ?? [])
     .filter((d) => d && d.name)
     .map((d) => ({
@@ -86,7 +98,7 @@ async function callGemini(parts: Part[]): Promise<ParsedDish[]> {
 }
 
 /** Reduce una foto a un JPEG pequeño en base64. */
-function fileToScaledBase64(file: File, maxDim = 1600, quality = 0.8): Promise<string> {
+function fileToScaledBase64(file: File, maxDim = 2200, quality = 0.9): Promise<string> {
   return new Promise((resolve, reject) => {
     const img = new Image()
     const url = URL.createObjectURL(file)
