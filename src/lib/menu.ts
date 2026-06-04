@@ -7,7 +7,7 @@ export interface ParsedDish {
 }
 
 const GEMINI_KEY = import.meta.env.VITE_GEMINI_API_KEY as string | undefined
-const MODEL = 'gemini-2.5-flash'
+const MODEL = 'gemini-2.0-flash'
 const ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`
 const CATEGORIES = DISH_CATEGORIES.map((c) => c.value)
 
@@ -43,7 +43,6 @@ async function callGemini(parts: Part[]): Promise<ParsedDish[]> {
     contents: [{ parts }],
     generationConfig: {
       temperature: 0,
-      thinkingConfig: { thinkingBudget: 0 },
       responseMimeType: 'application/json',
       responseSchema: {
         type: 'OBJECT',
@@ -81,7 +80,14 @@ async function callGemini(parts: Part[]): Promise<ParsedDish[]> {
     const detail = res ? await res.text().catch(() => '') : ''
     console.warn('[gemini] error', status, detail)
     if (status === 429) throw new Error('Límite de uso de Gemini (429). Espera un minuto o sube el tope de cuota.')
-    throw new Error(`El lector de cartas falló (${status ?? '?'})`)
+    // Intenta mostrar el motivo real (ej. "API key not valid", "model not found").
+    let reason = ''
+    try {
+      reason = (JSON.parse(detail) as { error?: { message?: string } })?.error?.message ?? ''
+    } catch {
+      /* sin JSON */
+    }
+    throw new Error(`Carta (${status ?? '?'}): ${reason || 'error desconocido'}`)
   }
   const data = await res.json()
   const text: string | undefined = data?.candidates?.[0]?.content?.parts?.[0]?.text
