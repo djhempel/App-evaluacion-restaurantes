@@ -7,7 +7,7 @@ export interface ParsedDish {
 }
 
 const GEMINI_KEY = import.meta.env.VITE_GEMINI_API_KEY as string | undefined
-const MODEL = 'gemini-2.0-flash'
+const MODEL = 'gemini-2.5-flash'
 const ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`
 const CATEGORIES = DISH_CATEGORIES.map((c) => c.value)
 
