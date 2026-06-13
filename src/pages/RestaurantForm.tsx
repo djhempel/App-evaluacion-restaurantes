@@ -1,0 +1,573 @@
+import { useEffect, useMemo, useState, type ChangeEvent } from 'react'
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
+import { useAuth } from '../contexts/AuthContext'
+import { useToast } from '../components/Toast'
+import { SubHeader } from '../components/Layout'
+import { Spinner } from '../components/Spinner'
+import { PhotoUploader } from '../components/PhotoUploader'
+import { createRestaurant, getRestaurant, listRestaurants, updateRestaurant } from '../lib/data'
+import { uploadImage } from '../lib/storage'
+import {
+  fetchPlaceDetails,
+  getCurrentPosition,
+  hasGooglePlaces,
+  normalizeText,
+  reverseGeocode,
+  searchPlaces,
+  type PlaceResult,
+} from '../lib/utils'
+import type { GoogleReview } from '../types'
+import { DISH_CATEGORIES } from '../config/dishes'
+import { CUISINES, CUISINE_BY_VALUE } from '../config/cuisines'
+import { parseMenuFromFile, parseMenuFromUrls, hasMenuAI, type ParsedDish } from '../lib/menu'
+import type { Dish, Restaurant } from '../types'
+
+interface GoogleInfo {
+  rating: number | null
+  count: number | null
+  placeId: string | null
+  type: string | null
+  phone: string | null
+  phoneIntl: string | null
+  website: string | null
+  mapsUri: string | null
+  priceLevel: number | null
+  hours: string[] | null
+  summary: string | null
+  reviews: GoogleReview[] | null
+}
+
+export function RestaurantForm() {
+  const { id } = useParams()
+  const editing = Boolean(id)
+  const { user } = useAuth()
+  const toast = useToast()
+  const navigate = useNavigate()
+  const location = useLocation()
+
+  const [loading, setLoading] = useState(editing)
+  const [name, setName] = useState('')
+  const [cuisine, setCuisine] = useState('')
+  const [address, setAddress] = useState('')
+  const [loc, setLoc] = useState<{ lat: number; lng: number } | null>(null)
+  const [google, setGoogle] = useState<GoogleInfo | null>(null)
+  const [photos, setPhotos] = useState<string[]>([])
+  const [menuPhotos, setMenuPhotos] = useState<string[]>([])
+  const [menuUrl, setMenuUrl] = useState('')
+  const [dishes, setDishes] = useState<Dish[]>([])
+  const [saving, setSaving] = useState(false)
+  const [parsing, setParsing] = useState(false)
+  const [locBusy, setLocBusy] = useState(false)
+  const [allRestaurants, setAllRestaurants] = useState<Restaurant[]>([])
+
+  // Búsqueda de lugares (autocompletar con OpenStreetMap).
+  const [placeQuery, setPlaceQuery] = useState('')
+  const [placeResults, setPlaceResults] = useState<PlaceResult[]>([])
+  const [placeSearching, setPlaceSearching] = useState(false)
+  const [placeDetailsBusy, setPlaceDetailsBusy] = useState(false)
+
+  // Restaurantes existentes (para sugerir cocinas y avisar duplicados).
+  useEffect(() => {
+    listRestaurants()
+      .then(setAllRestaurants)
+      .catch(() => undefined)
+  }, [])
+
+  // Precarga desde "Descubrir cerca" (botón Registrar).
+  useEffect(() => {
+    const place = (location.state as { place?: PlaceResult } | null)?.place
+    if (!editing && place) void selectPlace(place)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // Posibles duplicados por nombre parecido (solo al crear).
+  const possibleDuplicates = useMemo(() => {
+    const n = normalizeText(name)
+    if (editing || n.length < 4) return []
+    return allRestaurants
+      .filter((r) => {
+        const rn = normalizeText(r.name)
+        return rn === n || rn.includes(n) || n.includes(rn)
+      })
+      .slice(0, 3)
+  }, [name, allRestaurants, editing])
+
+  // Busca lugares mientras escribes (con retardo, respetando OpenStreetMap).
+  useEffect(() => {
+    const q = placeQuery.trim()
+    if (q.length < 4) {
+      setPlaceResults([])
+      return
+    }
+    setPlaceSearching(true)
+    const t = setTimeout(() => {
+      searchPlaces(q)
+        .then(setPlaceResults)
+        .catch(() => setPlaceResults([]))
+        .finally(() => setPlaceSearching(false))
+    }, 700)
+    return () => clearTimeout(t)
+  }, [placeQuery])
+
+  async function selectPlace(p: PlaceResult) {
+    if (!name.trim()) setName(p.name)
+    setAddress(p.address)
+    setLoc({ lat: p.lat, lng: p.lng })
+    setPlaceResults([])
+    setPlaceQuery('')
+    // Datos básicos al instante…
+    const base: GoogleInfo = {
+      rating: p.rating ?? null,
+      count: p.userRatingCount ?? null,
+      placeId: p.placeId ?? null,
+      type: null,
+      phone: null,
+      phoneIntl: null,
+      website: null,
+      mapsUri: null,
+      priceLevel: null,
+      hours: null,
+      summary: null,
+      reviews: null,
+    }
+    setGoogle(p.placeId || p.rating != null ? base : null)
+    // …y los datos ricos (teléfono, reseñas, horario…) si es un lugar de Google.
+    if (p.placeId) {
+      setPlaceDetailsBusy(true)
+      try {
+        const d = await fetchPlaceDetails(p.placeId)
+        if (d) {
+          setGoogle({ ...base, ...d })
+          toast(d.rating != null ? `Cargado · Google ${d.rating}★` : 'Datos del lugar cargados 📍')
+        }
+      } finally {
+        setPlaceDetailsBusy(false)
+      }
+    } else {
+      toast('Datos del lugar cargados 📍')
+    }
+  }
+
+  useEffect(() => {
+    if (!id) return
+    getRestaurant(id)
+      .then((r) => {
+        if (r) {
+          setName(r.name)
+          setCuisine(r.cuisine ?? '')
+          setAddress(r.address ?? '')
+          if (r.lat != null && r.lng != null) setLoc({ lat: r.lat, lng: r.lng })
+          setPhotos(r.photos ?? [])
+          setMenuPhotos(r.menuPhotos ?? [])
+          setMenuUrl(r.menuUrl ?? '')
+          setDishes(r.dishes ?? [])
+          if (r.googleRating != null || r.googlePlaceId) {
+            setGoogle({
+              rating: r.googleRating ?? null,
+              count: r.googleRatingCount ?? null,
+              placeId: r.googlePlaceId ?? null,
+              type: r.googleType ?? null,
+              phone: r.googlePhone ?? null,
+              phoneIntl: r.googlePhoneIntl ?? null,
+              website: r.googleWebsite ?? null,
+              mapsUri: r.googleMapsUri ?? null,
+              priceLevel: r.googlePriceLevel ?? null,
+              hours: r.googleHours ?? null,
+              summary: r.googleSummary ?? null,
+              reviews: r.googleReviews ?? null,
+            })
+          }
+        }
+        setLoading(false)
+      })
+      .catch(() => setLoading(false))
+  }, [id])
+
+  function addDish() {
+    setDishes((d) => [
+      ...d,
+      { id: crypto.randomUUID(), name: '', price: null, category: 'fondo' },
+    ])
+  }
+  function updateDish(dishId: string, patch: Partial<Dish>) {
+    setDishes((d) => d.map((x) => (x.id === dishId ? { ...x, ...patch } : x)))
+  }
+  function removeDish(dishId: string) {
+    setDishes((d) => d.filter((x) => x.id !== dishId))
+  }
+
+  // Lee la carta con IA (foto/fotos/link) y agrega los platos detectados.
+  async function runParseMenu(run: () => Promise<ParsedDish[]>) {
+    if (parsing) return
+    setParsing(true)
+    try {
+      const parsed = await run()
+      if (parsed.length === 0) {
+        toast('No se encontraron platos en la carta')
+        return
+      }
+      setDishes((d) => [
+        ...d,
+        ...parsed.map((p) => ({
+          id: crypto.randomUUID(),
+          name: p.name,
+          price: p.price,
+          category: p.category,
+        })),
+      ])
+      toast(`✨ ${parsed.length} platos agregados`)
+    } catch (e) {
+      console.error(e)
+      toast((e as Error)?.message || 'No se pudo leer la carta')
+    } finally {
+      setParsing(false)
+    }
+  }
+
+  async function onParseFile(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (file) await runParseMenu(() => parseMenuFromFile(file))
+  }
+
+  async function captureLocation() {
+    setLocBusy(true)
+    try {
+      const pos = await getCurrentPosition()
+      setLoc(pos)
+      toast('Ubicación capturada 📍')
+      // Autocompleta la dirección a partir de las coordenadas.
+      try {
+        const dir = await reverseGeocode(pos.lat, pos.lng)
+        if (dir) setAddress(dir)
+      } catch {
+        /* si falla la dirección, igual queda la ubicación */
+      }
+    } catch {
+      toast('No se pudo obtener la ubicación')
+    } finally {
+      setLocBusy(false)
+    }
+  }
+
+  async function handleSave() {
+    if (!user) return
+    if (!name.trim()) {
+      toast('Ponle un nombre al restaurante')
+      return
+    }
+    setSaving(true)
+    const cleanDishes = dishes
+      .filter((d) => d.name.trim())
+      .map((d) => ({
+        ...d,
+        name: d.name.trim(),
+        price: d.price ?? null,
+        category: d.category ?? 'otro',
+      }))
+    try {
+      const payload = {
+        name: name.trim(),
+        cuisine: cuisine.trim(),
+        address: address.trim(),
+        menuUrl: menuUrl.trim(),
+        lat: loc?.lat ?? null,
+        lng: loc?.lng ?? null,
+        googleRating: google?.rating ?? null,
+        googleRatingCount: google?.count ?? null,
+        googlePlaceId: google?.placeId ?? null,
+        googleType: google?.type ?? null,
+        googlePhone: google?.phone ?? null,
+        googlePhoneIntl: google?.phoneIntl ?? null,
+        googleWebsite: google?.website ?? null,
+        googleMapsUri: google?.mapsUri ?? null,
+        googlePriceLevel: google?.priceLevel ?? null,
+        googleHours: google?.hours ?? null,
+        googleSummary: google?.summary ?? null,
+        googleReviews: google?.reviews ?? null,
+        photos,
+        menuPhotos,
+        dishes: cleanDishes,
+        createdBy: user.uid,
+        createdByName: user.displayName ?? 'Anónimo',
+      }
+      if (editing && id) {
+        await updateRestaurant(id, payload)
+        toast('Restaurante actualizado')
+        navigate(`/restaurantes/${id}`, { replace: true })
+      } else {
+        const newId = await createRestaurant(payload)
+        toast('Restaurante creado 🎉')
+        const fromEvaluate = (location.state as { fromEvaluate?: boolean } | null)?.fromEvaluate
+        navigate(fromEvaluate ? `/evaluar?restaurant=${newId}` : `/restaurantes/${newId}`, { replace: true })
+      }
+    } catch (e) {
+      console.error(e)
+      toast('Error al guardar')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  if (loading) return <Spinner />
+
+  return (
+    <>
+      <SubHeader title={editing ? 'Editar restaurante' : 'Nuevo restaurante'} />
+      <div className="app-main">
+        <div className="card">
+          <label className="field" style={{ marginBottom: placeResults.length || placeSearching ? 10 : 0 }}>
+            <span>{editing ? '🔗 Asociar a un lugar de Google' : '🔎 Buscar el lugar (autocompletar)'}</span>
+              <input
+                value={placeQuery}
+                onChange={(e) => setPlaceQuery(e.target.value)}
+                placeholder="Escribe el nombre o dirección…"
+                autoComplete="off"
+              />
+              <p className="hint">
+                {hasGooglePlaces
+                  ? 'Busca en Google y precarga nombre, dirección, ubicación y la nota de Google.'
+                  : 'Busca en OpenStreetMap y precarga dirección y ubicación.'}
+              </p>
+            </label>
+            {placeSearching && <p className="hint">Buscando…</p>}
+            {placeResults.map((p, i) => (
+              <button
+                key={i}
+                type="button"
+                className="list-item"
+                onClick={() => selectPlace(p)}
+                style={{ width: '100%', background: 'none', border: 'none', textAlign: 'left', cursor: 'pointer' }}
+              >
+                <span style={{ fontSize: 20 }}>📍</span>
+                <div className="meta">
+                  <div className="name">{p.name}</div>
+                  <div className="sub">{p.address}</div>
+                </div>
+                {p.rating != null && (
+                  <span className="sub" style={{ whiteSpace: 'nowrap' }}>
+                    {p.rating.toFixed(1)} ⭐
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+
+        {(google || placeDetailsBusy) && (
+          <div className="card">
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+              <span style={{ fontSize: 20 }}>🟢</span>
+              <div style={{ fontWeight: 700, flex: 1 }}>Datos de Google</div>
+              {google && (
+                <button
+                  className="btn ghost small"
+                  onClick={() => setGoogle(null)}
+                  style={{ color: '#d23a3a' }}
+                >
+                  Quitar
+                </button>
+              )}
+            </div>
+            {placeDetailsBusy && <p className="hint" style={{ margin: 0 }}>Cargando teléfono, reseñas y horario…</p>}
+            {google && (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                {google.rating != null && (
+                  <span className="chip">
+                    ⭐ {google.rating.toFixed(1)}
+                    {google.count != null ? ` (${google.count})` : ''}
+                  </span>
+                )}
+                {google.type && <span className="chip">🍴 {google.type}</span>}
+                {google.priceLevel != null && (
+                  <span className="chip">{google.priceLevel === 0 ? 'Gratis' : '$'.repeat(google.priceLevel)}</span>
+                )}
+                {google.phone && <span className="chip">📞 {google.phone}</span>}
+                {google.website && <span className="chip">🌐 Web</span>}
+                {google.hours && <span className="chip">🕒 Horario</span>}
+                {google.reviews && <span className="chip">💬 {google.reviews.length} reseñas</span>}
+              </div>
+            )}
+            {google?.summary && <p className="hint" style={{ marginBottom: 0 }}>{google.summary}</p>}
+          </div>
+        )}
+
+        <label className="field">
+          <span>Nombre *</span>
+          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ej: La Mar" />
+        </label>
+
+        {possibleDuplicates.length > 0 && (
+          <div className="card" style={{ borderLeft: '4px solid var(--orange)' }}>
+            <div style={{ fontWeight: 700, marginBottom: 4 }}>⚠️ ¿Quizás ya existe?</div>
+            <p className="hint" style={{ marginTop: 0 }}>
+              Encontramos lugares con nombre parecido. Toca para ver y evitar duplicarlo:
+            </p>
+            {possibleDuplicates.map((r) => (
+              <Link key={r.id} to={`/restaurantes/${r.id}`} className="list-item" style={{ color: 'inherit' }}>
+                <div className="meta">
+                  <div className="name">{r.name}</div>
+                  {r.cuisine && <div className="sub">{r.cuisine}</div>}
+                </div>
+                <span style={{ color: 'var(--muted)' }}>›</span>
+              </Link>
+            ))}
+          </div>
+        )}
+        <label className="field">
+          <span>Tipo de comida</span>
+          <select value={cuisine} onChange={(e) => setCuisine(e.target.value)}>
+            <option value="">Sin especificar</option>
+            {cuisine && !CUISINE_BY_VALUE[cuisine] && <option value={cuisine}>{cuisine}</option>}
+            {CUISINES.map((c) => (
+              <option key={c.value} value={c.value}>
+                {c.emoji} {c.label}
+              </option>
+            ))}
+          </select>
+          {google?.type && (
+            <p className="hint">Google lo clasifica como: {google.type}</p>
+          )}
+        </label>
+        <label className="field">
+          <span>Dirección</span>
+          <input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Calle, ciudad" />
+        </label>
+
+        <div className="card">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ fontSize: 22 }}>📍</span>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontWeight: 700 }}>Ubicación en el mapa</div>
+              <div className="hint">
+                {loc ? `${loc.lat.toFixed(4)}, ${loc.lng.toFixed(4)}` : 'Sin ubicación'}
+              </div>
+            </div>
+            <button className="btn secondary small" onClick={captureLocation} disabled={locBusy}>
+              {locBusy ? '…' : loc ? 'Actualizar' : 'Usar mi ubicación'}
+            </button>
+          </div>
+        </div>
+
+        <div className="section-title">Fotos del lugar</div>
+        <div className="card">
+          <PhotoUploader
+            value={photos}
+            onChange={setPhotos}
+            upload={(f) => uploadImage(f, `restaurants/photos`)}
+          />
+        </div>
+
+        <div className="section-title">Menú (carga las fotos del menú)</div>
+        <div className="card">
+          <PhotoUploader
+            value={menuPhotos}
+            onChange={setMenuPhotos}
+            upload={(f) => uploadImage(f, `restaurants/menus`)}
+          />
+          <p className="hint">Sube fotos del menú para luego elegir el plato que evaluaste.</p>
+        </div>
+
+        <label className="field">
+          <span>Link a la carta web (opcional)</span>
+          <input
+            type="url"
+            inputMode="url"
+            value={menuUrl}
+            onChange={(e) => setMenuUrl(e.target.value)}
+            placeholder="https://… (si el local tiene menú online)"
+          />
+        </label>
+
+        {hasMenuAI && (
+          <>
+            <div className="section-title">✨ Leer carta automáticamente</div>
+            <div className="card">
+              <p className="hint" style={{ marginTop: 0 }}>
+                Sube un archivo (foto o PDF) de la carta —o úsala desde las fotos del menú— y la
+                convertimos en platos seleccionables. Puedes corregirlos antes de guardar.
+              </p>
+              <label className="btn secondary block" style={{ cursor: parsing ? 'default' : 'pointer', opacity: parsing ? 0.6 : 1 }}>
+                📄 Subir archivo de la carta (foto o PDF)
+                <input
+                  type="file"
+                  accept="image/*,application/pdf"
+                  onChange={onParseFile}
+                  disabled={parsing}
+                  style={{ display: 'none' }}
+                />
+              </label>
+              {menuPhotos.length > 0 && (
+                <button
+                  className="btn secondary block"
+                  style={{ marginTop: 8 }}
+                  disabled={parsing}
+                  onClick={() => runParseMenu(() => parseMenuFromUrls(menuPhotos))}
+                >
+                  🍽️ Leer de las {menuPhotos.length} foto{menuPhotos.length > 1 ? 's' : ''} del menú
+                </button>
+              )}
+              {parsing && <p className="hint" style={{ marginBottom: 0 }}>Leyendo la carta… (puede tardar unos segundos)</p>}
+            </div>
+          </>
+        )}
+
+        <div className="section-title">Platos de la carta</div>
+        <div className="card">
+          {dishes.length === 0 && (
+            <p className="muted" style={{ textAlign: 'center', margin: '8px 0' }}>
+              Agrega los platos que se podrán evaluar (opcional).
+            </p>
+          )}
+          {dishes.map((d) => (
+            <div key={d.id} style={{ borderBottom: '1px solid var(--line)', paddingBottom: 10, marginBottom: 10 }}>
+              <div className="row" style={{ alignItems: 'flex-start' }}>
+                <input
+                  placeholder="Nombre del plato"
+                  value={d.name}
+                  onChange={(e) => updateDish(d.id, { name: e.target.value })}
+                  style={{ flex: 2 }}
+                />
+                <button
+                  className="btn ghost"
+                  onClick={() => removeDish(d.id)}
+                  style={{ padding: '8px 10px', color: '#d23a3a' }}
+                  aria-label="Quitar plato"
+                >
+                  🗑️
+                </button>
+              </div>
+              <div className="row" style={{ marginTop: 8 }}>
+                <select
+                  value={d.category ?? 'fondo'}
+                  onChange={(e) => updateDish(d.id, { category: e.target.value })}
+                  style={{ flex: 2 }}
+                >
+                  {DISH_CATEGORIES.map((c) => (
+                    <option key={c.value} value={c.value}>
+                      {c.emoji} {c.label}
+                    </option>
+                  ))}
+                </select>
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  placeholder="Precio"
+                  value={d.price ?? ''}
+                  onChange={(e) => updateDish(d.id, { price: e.target.value ? Number(e.target.value) : null })}
+                  style={{ flex: 1 }}
+                />
+              </div>
+            </div>
+          ))}
+          <button className="btn secondary small" onClick={addDish}>
+            + Agregar plato
+          </button>
+        </div>
+
+        <button className="btn block" onClick={handleSave} disabled={saving} style={{ marginTop: 12 }}>
+          {saving ? 'Guardando…' : editing ? 'Guardar cambios' : 'Crear restaurante'}
+        </button>
+      </div>
+    </>
+  )
+}

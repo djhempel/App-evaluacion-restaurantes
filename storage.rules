@@ -1,0 +1,14 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Las imágenes (fotos del lugar, menús y evaluaciones) son legibles por
+    // cualquiera (para que funcionen los links públicos). Solo usuarios
+    // logueados pueden subir, y se limita el tamaño a 10 MB por archivo.
+    match /{allPaths=**} {
+      allow read: if true;
+      allow write: if request.auth != null
+        && request.resource.size < 10 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+    }
+  }
+}

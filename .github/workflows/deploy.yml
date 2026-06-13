@@ -1,0 +1,63 @@
+name: Publicar app (Firebase)
+
+# Se ejecuta cuando hay cambios en estas ramas, o manualmente con el botón
+# "Run workflow" desde la pestaña Actions de GitHub (se puede desde el celular).
+on:
+  push:
+    branches:
+      - main
+      - claude/restaurant-rating-app-kARG5
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar el código
+        uses: actions/checkout@v4
+
+      - name: Preparar Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Crear archivo .env con las credenciales (desde los Secrets)
+        run: |
+          cat > .env <<EOF
+          VITE_FIREBASE_API_KEY=${{ secrets.VITE_FIREBASE_API_KEY }}
+          VITE_FIREBASE_AUTH_DOMAIN=${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}
+          VITE_FIREBASE_PROJECT_ID=${{ secrets.VITE_FIREBASE_PROJECT_ID }}
+          VITE_FIREBASE_STORAGE_BUCKET=${{ secrets.VITE_FIREBASE_STORAGE_BUCKET }}
+          VITE_FIREBASE_MESSAGING_SENDER_ID=${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
+          VITE_FIREBASE_APP_ID=${{ secrets.VITE_FIREBASE_APP_ID }}
+          VITE_GOOGLE_MAPS_API_KEY=${{ secrets.VITE_GOOGLE_MAPS_API_KEY }}
+          VITE_GEMINI_API_KEY=${{ secrets.VITE_GEMINI_API_KEY }}
+          EOF
+
+      - name: Construir la app
+        run: npm run build
+
+      - name: Guardar la llave de servicio de Firebase
+        env:
+          SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: printf '%s' "$SERVICE_ACCOUNT" > "$RUNNER_TEMP/firebase-key.json"
+
+      - name: Publicar en Firebase (hosting + reglas)
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/firebase-key.json
+          RAW_PROJECT_ID: ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
+        run: |
+          # Limpia espacios o saltos de línea que se hayan colado al copiar el secreto.
+          PROJECT_ID="$(printf '%s' "$RAW_PROJECT_ID" | tr -d '[:space:]"')"
+          echo "Desplegando el proyecto: [$PROJECT_ID]"
+          # Solo publicamos el sitio web. Las reglas de Firestore y Storage se
+          # publican a mano en la consola de Firebase, porque la llave de
+          # servicio por defecto no tiene permiso para subir reglas por CLI.
+          npx --yes firebase-tools@13 deploy \
+            --only hosting \
+            --project "$PROJECT_ID" \
+            --non-interactive

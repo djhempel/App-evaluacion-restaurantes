@@ -1,0 +1,50 @@
+import { NavLink, Outlet, useNavigate } from 'react-router-dom'
+
+const NAV = [
+  { to: '/', icon: '📸', label: 'Feed', end: true },
+  { to: '/descubrir', icon: '🧭', label: 'Descubrir', end: false },
+  { to: '/crear', icon: '＋', label: 'Crear', end: false, create: true },
+  { to: '/wishlist', icon: '📌', label: 'Lista', end: false },
+  { to: '/perfil', icon: '👤', label: 'Perfil', end: false },
+]
+
+export function Layout({ title }: { title?: string }) {
+  return (
+    <>
+      {title && (
+        <header className="app-header">
+          <h1>{title}</h1>
+        </header>
+      )}
+      <main className="app-main">
+        <Outlet />
+      </main>
+      <nav className="bottom-nav">
+        {NAV.map((n) => (
+          <NavLink key={n.to} to={n.to} end={n.end} className={n.create ? 'create' : undefined}>
+            <span className="icon">{n.icon}</span>
+            {!n.create && n.label}
+          </NavLink>
+        ))}
+      </nav>
+    </>
+  )
+}
+
+/** Cabecera con botón de volver, para pantallas internas. */
+export function SubHeader({ title }: { title: string }) {
+  const navigate = useNavigate()
+  return (
+    <header className="app-header">
+      <button
+        className="btn ghost"
+        onClick={() => navigate(-1)}
+        aria-label="Volver"
+        style={{ padding: 4, fontSize: 22 }}
+      >
+        ‹
+      </button>
+      <h1>{title}</h1>
+    </header>
+  )
+}

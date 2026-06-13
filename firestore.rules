@@ -1,0 +1,93 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    // Perfiles de usuario: cada quien gestiona el suyo; lectura abierta a logueados.
+    match /users/{userId} {
+      allow read: if signedIn();
+      allow write: if signedIn() && request.auth.uid == userId;
+    }
+
+    // Restaurantes: cualquier usuario logueado puede crear y editar (modo colaborativo).
+    match /restaurants/{id} {
+      allow read: if signedIn();
+      allow create: if signedIn() && request.resource.data.createdBy == request.auth.uid;
+      allow update: if signedIn();
+      allow delete: if signedIn() && resource.data.createdBy == request.auth.uid;
+    }
+
+    // Evaluaciones: ECOSISTEMA SOCIAL → cualquier usuario logueado puede leerlas
+    // (el autor se oculta en la app). Solo el dueño puede crear/editar/borrar.
+    // Las públicas además se pueden leer sin login (para los links compartidos).
+    match /evaluations/{id} {
+      allow read: if signedIn() || resource.data.isPublic == true;
+      allow create: if signedIn() && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if signedIn() && resource.data.userId == request.auth.uid;
+    }
+
+    // Grupos: los miembros pueden leer/editar; cualquiera logueado puede unirse
+    // (agregándose a sí mismo a memberUids con el link de invitación).
+    match /groups/{id} {
+      allow read: if signedIn();
+      allow create: if signedIn() && request.resource.data.ownerId == request.auth.uid;
+      allow update: if signedIn()
+        && (resource.data.ownerId == request.auth.uid
+            || request.auth.uid in request.resource.data.memberUids);
+      allow delete: if signedIn() && resource.data.ownerId == request.auth.uid;
+    }
+
+    // Wishlist: personal (del dueño) o compartida con un grupo (sus miembros).
+    function wishlistMember() {
+      return resource.data.groupId != null
+        && exists(/databases/$(database)/documents/groups/$(resource.data.groupId))
+        && request.auth.uid in get(/databases/$(database)/documents/groups/$(resource.data.groupId)).data.memberUids;
+    }
+    match /wishlist/{id} {
+      allow read, update, delete: if signedIn()
+        && (resource.data.userId == request.auth.uid || wishlistMember());
+      allow create: if signedIn() && request.resource.data.userId == request.auth.uid;
+    }
+
+    // Salidas a comer (cuentas del grupo): solo miembros del grupo.
+    function outingMember(gid) {
+      return exists(/databases/$(database)/documents/groups/$(gid))
+        && request.auth.uid in get(/databases/$(database)/documents/groups/$(gid)).data.memberUids;
+    }
+    match /outings/{id} {
+      allow read, update, delete: if signedIn() && outingMember(resource.data.groupId);
+      allow create: if signedIn() && outingMember(request.resource.data.groupId);
+    }
+
+    // Solicitudes de amistad: las ve/gestiona quien la envía o la recibe.
+    match /friendRequests/{id} {
+      allow read, delete: if signedIn()
+        && (resource.data.fromUid == request.auth.uid || resource.data.toUid == request.auth.uid);
+      allow create: if signedIn() && request.resource.data.fromUid == request.auth.uid;
+      allow update: if signedIn() && resource.data.toUid == request.auth.uid;
+    }
+
+    // Amistades: solo los dos involucrados las leen/crean/borran.
+    match /friendships/{id} {
+      allow read, delete: if signedIn() && request.auth.uid in resource.data.uids;
+      allow create: if signedIn() && request.auth.uid in request.resource.data.uids;
+    }
+
+    // Likes: cualquiera logueado los lee; cada quien gestiona el suyo.
+    match /likes/{id} {
+      allow read: if signedIn();
+      allow create: if signedIn() && request.resource.data.uid == request.auth.uid;
+      allow delete: if signedIn() && resource.data.uid == request.auth.uid;
+    }
+
+    // Comentarios: lectura para logueados; cada quien crea/edita/borra los suyos.
+    match /comments/{id} {
+      allow read: if signedIn();
+      allow create: if signedIn() && request.resource.data.uid == request.auth.uid;
+      allow update, delete: if signedIn() && resource.data.uid == request.auth.uid;
+    }
+  }
+}
