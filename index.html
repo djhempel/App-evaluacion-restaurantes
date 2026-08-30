@@ -1,0 +1,416 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Diego & Josefina · 30.10.2026</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Invitación de matrimonio de Diego & Josefina">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,600;1,500;1,600&family=Quicksand:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --cream:#fdfaf4;
+    --cream-band:#f6f4ea;
+    --green:#4d6324;
+    --green-btn:#4a5c3a;
+    --green-icon:#8b9169;
+    --sage:#7a8c6e;
+    --maroon:#852335;
+    --serif:'Playfair Display', serif;
+    --sans:'Quicksand', sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{
+    margin:0;
+    background:var(--cream);
+    color:var(--green);
+    font-family:var(--sans);
+    font-weight:500;
+  }
+  .invite{
+    max-width:520px;
+    margin:0 auto;
+    position:relative;
+    overflow:hidden;
+  }
+  section{position:relative;}
+  .eyebrow{
+    text-transform:uppercase;
+    letter-spacing:.3em;
+    font-size:.8rem;
+    font-weight:600;
+    color:var(--green);
+    text-align:center;
+    margin:0 0 .6em;
+  }
+  .eyebrow.serif{
+    font-family:var(--serif);
+    text-transform:uppercase;
+    letter-spacing:.25em;
+    font-weight:500;
+    font-size:1.6rem;
+    margin-bottom:1.2em;
+  }
+  p{line-height:1.55;}
+  a{color:inherit;}
+
+  /* ---------- HERO ---------- */
+  .hero{
+    padding:56px 34px 30px;
+    text-align:center;
+  }
+  .flower{
+    position:absolute;
+    width:340px;
+    max-width:60%;
+    opacity:.45;
+    pointer-events:none;
+    z-index:0;
+  }
+  .flower--tl{ top:-10px; left:-60px; }
+  .flower--br{
+    width:200px;
+    bottom:10px;
+    right:-140px;
+    transform:scaleX(-1);
+    opacity:.3;
+  }
+  .hero > *{ position:relative; z-index:1; }
+
+  .parents{
+    display:flex;
+    justify-content:space-between;
+    gap:10px;
+    font-size:.82rem;
+    line-height:1.5;
+    margin-bottom:42px;
+  }
+  .parents__side{ width:48%; }
+  .parents__side:last-child{ text-align:right; }
+
+  .lead{
+    font-size:1.05rem;
+    margin:0 0 28px;
+  }
+  .names{
+    font-family:var(--serif);
+    font-weight:600;
+    font-size:2.6rem;
+    letter-spacing:.03em;
+    margin:0 0 30px;
+  }
+  .names .amp{ font-style:italic; font-weight:500; }
+
+  .date-label{
+    font-family:var(--sans);
+    text-transform:uppercase;
+    letter-spacing:.25em;
+    font-weight:700;
+    font-size:1.4rem;
+    margin:34px 0 18px;
+  }
+  .arrow-down{
+    font-size:1.4rem;
+    color:var(--green);
+    opacity:.7;
+  }
+
+  /* ---------- COUNTDOWN ---------- */
+  .countdown{
+    background:var(--cream-band);
+    padding:34px 20px 40px;
+    text-align:center;
+  }
+  .countdown__grid{
+    display:flex;
+    align-items:baseline;
+    justify-content:center;
+    gap:14px;
+  }
+  .countdown__grid .num{
+    font-family:var(--sans);
+    font-weight:700;
+    font-size:2.7rem;
+    display:block;
+    line-height:1;
+  }
+  .countdown__grid small{
+    display:block;
+    text-transform:uppercase;
+    letter-spacing:.18em;
+    font-size:.68rem;
+    font-weight:600;
+    color:#8a9678;
+    margin-top:6px;
+  }
+  .countdown__grid .dot{
+    color:var(--maroon);
+    font-size:2rem;
+    font-weight:700;
+    transform:translateY(-14px);
+  }
+
+  /* ---------- CEREMONIA / RECEPCION ---------- */
+  .block{
+    padding:46px 34px;
+    text-align:center;
+  }
+  .photo-blob{
+    width:100%;
+    max-width:340px;
+    aspect-ratio:1/1;
+    margin:0 auto 30px;
+    -webkit-mask-image:radial-gradient(ellipse 62% 58% at 50% 42%, black 45%, transparent 78%);
+            mask-image:radial-gradient(ellipse 62% 58% at 50% 42%, black 45%, transparent 78%);
+  }
+  .photo-blob img{
+    width:100%;
+    height:100%;
+    object-fit:cover;
+  }
+  .place-name{
+    font-family:var(--serif);
+    font-style:italic;
+    font-weight:500;
+    font-size:1.9rem;
+    margin:0 0 10px;
+  }
+  .time{
+    font-weight:700;
+    font-size:1.2rem;
+    margin:0 0 14px;
+  }
+  .address{
+    font-size:.95rem;
+    margin:0 0 28px;
+  }
+
+  .btn{
+    display:inline-block;
+    background:var(--green-btn);
+    color:#fdfaf4;
+    text-decoration:none;
+    text-transform:uppercase;
+    letter-spacing:.2em;
+    font-size:.85rem;
+    font-weight:600;
+    padding:16px 28px;
+    width:100%;
+    max-width:340px;
+  }
+  .btn__icon{ margin-right:8px; vertical-align:-2px; }
+
+  /* ---------- REGALOS ---------- */
+  .stripes{
+    padding:26px 18px;
+    background-image:repeating-linear-gradient(
+      90deg,
+      var(--green-btn) 0px, var(--green-btn) 22px,
+      transparent 22px, transparent 44px
+    );
+  }
+  .stripes__card{
+    background:var(--cream-band);
+    padding:44px 30px 38px;
+    text-align:center;
+  }
+  .stripes__card .icon{
+    width:78px;
+    margin-bottom:18px;
+  }
+  .stripes__card p{
+    font-size:1rem;
+    margin:0 0 24px;
+  }
+  .stripes__card .btn{ margin:0 auto; }
+
+  /* ---------- RSVP ---------- */
+  .rsvp{ padding:50px 34px 0; text-align:center; }
+  .rsvp .icon--rsvp{
+    width:150px;
+    margin:14px auto 26px;
+    display:block;
+  }
+  .rsvp p{ font-size:1.02rem; margin:0 0 26px; }
+  .btn--wide{ max-width:340px; }
+
+  .calendar-block{
+    padding:38px 34px 56px;
+    text-align:center;
+  }
+  .cal-links{
+    display:flex;
+    justify-content:center;
+    gap:34px;
+    flex-wrap:wrap;
+  }
+  .cal-links a{
+    text-decoration:none;
+    text-transform:uppercase;
+    letter-spacing:.12em;
+    font-size:.85rem;
+    font-weight:600;
+    border-bottom:1.5px solid var(--green);
+    padding-bottom:4px;
+    white-space:nowrap;
+  }
+  .cal-icon{ margin-right:6px; vertical-align:-3px; }
+
+  /* ---------- FOOTER ---------- */
+  .footer{
+    background:var(--sage);
+    color:#fdfaf4;
+    text-align:center;
+    padding:48px 20px 56px;
+  }
+  .footer .eyebrow{
+    color:#e7ecdf;
+    font-size:.78rem;
+  }
+  .footer__names{
+    font-family:var(--serif);
+    font-style:italic;
+    font-weight:600;
+    font-size:2.2rem;
+    margin:6px 0 14px;
+  }
+  .footer__date{
+    letter-spacing:.3em;
+    font-weight:600;
+    margin:0;
+  }
+</style>
+</head>
+<body>
+<div class="invite">
+
+  <!-- HERO -->
+  <section class="hero">
+    <img class="flower flower--tl" src="assets/flower.png" alt="" aria-hidden="true">
+    <img class="flower flower--br" src="assets/flower.png" alt="" aria-hidden="true">
+
+    <div class="parents">
+      <div class="parents__side">
+        <p>Germán Hempel Apel</p>
+        <p>Loreto Souper Schweitzer</p>
+      </div>
+      <div class="parents__side">
+        <p>Rodrigo Hidalgo Matute</p>
+        <p>Verónica Tapia Bacigalupo</p>
+      </div>
+    </div>
+
+    <p class="lead">Participan a usted en el matrimonio de sus hijos</p>
+    <h1 class="names">Diego <span class="amp">&amp;</span> Josefina</h1>
+    <p class="lead">Con mucha alegría queremos invitarlos a acompañarnos<br>en este día tan especial.</p>
+
+    <p class="date-label">Viernes<br>30·10·2026</p>
+    <div class="arrow-down">&#8595;</div>
+  </section>
+
+  <!-- COUNTDOWN -->
+  <section class="countdown">
+    <p class="eyebrow">Faltan</p>
+    <div class="countdown__grid">
+      <div><span id="cd-days" class="num">--</span><small>Días</small></div>
+      <span class="dot">.</span>
+      <div><span id="cd-hours" class="num">--</span><small>Horas</small></div>
+      <span class="dot">.</span>
+      <div><span id="cd-mins" class="num">--</span><small>Minutos</small></div>
+    </div>
+  </section>
+
+  <!-- CEREMONIA -->
+  <section class="block">
+    <h2 class="eyebrow serif">Ceremonia</h2>
+    <div class="photo-blob"><img src="assets/church.jpg" alt="Iglesia Las Pataguas"></div>
+    <h3 class="place-name">Iglesia Las Pataguas</h3>
+    <p class="time">17:15 hrs</p>
+    <p class="address">Parque Las Pataguas 11450,<br>Lo Barnechea, Santiago</p>
+    <a class="btn" target="_blank" rel="noopener"
+       href="https://www.google.com/maps/search/?api=1&query=Iglesia+Las+Pataguas%2C+Parque+Las+Pataguas+11450%2C+Lo+Barnechea%2C+Santiago">
+<svg class="btn__icon" width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M12 2C7.58 2 4 5.58 4 10c0 5.25 7 12 8 12s8-6.75 8-12c0-4.42-3.58-8-8-8Zm0 11a3 3 0 1 1 0-6 3 3 0 0 1 0 6Z" fill="currentColor"/></svg>Google Maps
+    </a>
+  </section>
+
+  <!-- RECEPCION -->
+  <section class="block">
+    <h2 class="eyebrow serif">Recepción</h2>
+    <div class="photo-blob"><img src="assets/venue.jpg" alt="Arboleda de Chicureo"></div>
+    <h3 class="place-name">Arboleda de Chicureo</h3>
+    <p class="address">Alba 11640, Chicureo</p>
+    <a class="btn" target="_blank" rel="noopener"
+       href="https://www.google.com/maps/search/?api=1&query=Arboleda+de+Chicureo%2C+Alba+11640%2C+Chicureo">
+<svg class="btn__icon" width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M12 2C7.58 2 4 5.58 4 10c0 5.25 7 12 8 12s8-6.75 8-12c0-4.42-3.58-8-8-8Zm0 11a3 3 0 1 1 0-6 3 3 0 0 1 0 6Z" fill="currentColor"/></svg>Google Maps
+    </a>
+  </section>
+
+  <!-- REGALOS -->
+  <section class="stripes">
+    <div class="stripes__card">
+      <img class="icon" src="assets/gift.png" alt="">
+      <h2 class="eyebrow serif">Regalos</h2>
+      <p>Novios Falabella: Código 2105001</p>
+      <a class="btn" target="_blank" rel="noopener" href="https://www.noviosfalabella.com/">Regalar</a>
+    </div>
+  </section>
+
+  <!-- RSVP -->
+  <section class="rsvp">
+    <h2 class="eyebrow serif">RSVP</h2>
+    <img class="icon--rsvp" src="assets/rsvp.png" alt="">
+    <p>Queremos contar con tu presencia en nuestro día.</p>
+    <a class="btn btn--wide" target="_blank" rel="noopener"
+       href="https://forms.gle/REEMPLAZAR-CON-TU-FORMULARIO">Confirmar asistencia</a>
+  </section>
+
+  <section class="calendar-block">
+    <p class="eyebrow">Agregar al calendario</p>
+    <div class="cal-links">
+      <a target="_blank" rel="noopener"
+         href="https://calendar.google.com/calendar/render?action=TEMPLATE&text=Matrimonio%20Diego%20%26%20Josefina&dates=20261030T201500Z/20261031T050000Z&details=Ceremonia%3A%20Iglesia%20Las%20Pataguas%2C%2017%3A15%20hrs.%20Recepci%C3%B3n%3A%20Arboleda%20de%20Chicureo.&location=Parque%20Las%20Pataguas%2011450%2C%20Lo%20Barnechea%2C%20Santiago">
+        <svg class="cal-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="1.5" stroke="currentColor" stroke-width="1.6"/><path d="M3 9.5h18" stroke="currentColor" stroke-width="1.6"/><path d="M8 3v3.2M16 3v3.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+        Google Calendar
+      </a>
+      <a href="wedding.ics" download>
+        <svg class="cal-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="1.5" stroke="currentColor" stroke-width="1.6"/><path d="M3 9.5h18" stroke="currentColor" stroke-width="1.6"/><path d="M8 3v3.2M16 3v3.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+        Apple / Outlook
+      </a>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer class="footer">
+    <p class="eyebrow">Nos vemos pronto</p>
+    <p class="footer__names">Diego &amp; Josefina</p>
+    <p class="footer__date">30 · 10 · 2026</p>
+  </footer>
+
+</div>
+
+<script>
+  var weddingDate = new Date('2026-10-30T17:15:00-03:00').getTime();
+
+  function updateCountdown(){
+    var now = Date.now();
+    var diff = weddingDate - now;
+    if (diff < 0) diff = 0;
+
+    var days = Math.floor(diff / 86400000);
+    var hours = Math.floor((diff % 86400000) / 3600000);
+    var mins = Math.floor((diff % 3600000) / 60000);
+
+    function pad(n){ return n < 10 ? '0' + n : n; }
+
+    document.getElementById('cd-days').textContent = days;
+    document.getElementById('cd-hours').textContent = pad(hours);
+    document.getElementById('cd-mins').textContent = pad(mins);
+  }
+
+  updateCountdown();
+  setInterval(updateCountdown, 1000 * 30);
+</script>
+</body>
+</html>

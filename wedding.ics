@@ -1,0 +1,16 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//Diego & Josefina//Matrimonio//ES
+CALSCALE:GREGORIAN
+METHOD:PUBLISH
+BEGIN:VEVENT
+UID:diego-josefina-30102026@wedding
+DTSTAMP:20260830T000000Z
+DTSTART:20261030T201500Z
+DTEND:20261031T050000Z
+SUMMARY:Matrimonio Diego Hempel & Josefina Hidalgo
+DESCRIPTION:Ceremonia: Iglesia Las Pataguas\, 17:15 hrs.\nParque Las Pataguas 11450\, Lo Barnechea\, Santiago.\n\nRecepción: Arboleda de Chicureo\, Alba 11640\, Chicureo.
+LOCATION:Parque Las Pataguas 11450\, Lo Barnechea\, Santiago
+STATUS:CONFIRMED
+END:VEVENT
+END:VCALENDAR
